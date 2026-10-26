@@ -367,6 +367,13 @@ if(GE_UNLOCK_ALL)
     add_compile_definitions(GE_UNLOCK_ALL=1)
 endif()
 
+# Folder page and `ap debug` that fire the client effects. Off in a normal build,
+# so that page is not in the exe unless this is passed at configure time.
+option(GE_AP_DEBUG "Archipelago debug menu (testing)" OFF)
+if(GE_AP_DEBUG)
+    add_compile_definitions(GE_AP_DEBUG=1)
+endif()
+
 # By default the exe carries none of Rare's data and exits without the user's ROM.
 # -DGE_ROMDATA_FALLBACK=ON keeps compiled-in copies as a no-ROM fallback (see docs/port/romdata.md).
 option(GE_ROMDATA_FALLBACK "Keep compiled-in copies of the ROM-served asset classes (GE_ROMDATA=0 / missing-ROM fallback)" OFF)
@@ -427,6 +434,10 @@ target_include_directories(ge PRIVATE ${CMAKE_BINARY_DIR}/generated)
 
 # libm: sinf/cosf/sqrtf (math_sincos.s and gu asm on N64; libm on PC).
 target_link_libraries(ge m)
+if(NOT WIN32)
+    # port/src/ap_net.c worker thread. The video build links pthread too; repeating it is harmless.
+    target_link_libraries(ge pthread)
+endif()
 
 if(GE_VIDEO)
     if(WIN32)
