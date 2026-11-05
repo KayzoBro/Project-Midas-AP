@@ -793,7 +793,11 @@ void bossMainloop(void)
                             { /* Tilde console (docs/port/menu-overhaul-spec.md 7): drawn
                                * last so it covers every screen, and a no-op
                                * until opened or while fonts are unloaded. */
+                                extern Gfx *apPopupRender(Gfx *gdl);
+                                extern Gfx *apSupplyRender(Gfx *gdl);
                                 extern Gfx *portConRender(Gfx *gdl);
+                                gdl = apSupplyRender(gdl);
+                                gdl = apPopupRender(gdl);
                                 gdl = portConRender(gdl);
                             }
 #endif
@@ -942,6 +946,12 @@ void bossReturnTitleStage(void) {
     }
 #endif
     if ((bossGetStageNum() != LEVELID_CUBA) && (objectiveIsAllComplete() != 0x0)) {
+#ifndef TARGET_N64
+        {
+            extern void apOnMissionComplete(s32 levelid, s32 difficulty);
+            apOnMissionComplete((s32) bossGetStageNum(), (s32) lvlGetSelectedDifficulty());
+        }
+#endif
         end_of_mission_briefing();
     }
     bossRunTitleStage();
