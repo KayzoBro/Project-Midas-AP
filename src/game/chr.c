@@ -30,6 +30,7 @@
 #include "player.h"
 #ifndef TARGET_N64
 #include <stdio.h> /* GE_INTRODBG diag in chrRenderProp */
+#include "ap_enemy.h"
 #endif
 #include "propobj.h"
 #include "stan.h"
@@ -1523,6 +1524,9 @@ s32 sub_GAME_7F01FC10(Model *model, coord3d *src, coord3d *dst, f32 *ground_y)
                 rwdata = modelGetNodeRwData(model, model->obj->RootNode);
 
                 chr->chrflags &= ~1;
+#ifndef TARGET_N64
+                apEnemyArmIfBare(chr);
+#endif
                 chr->manground = chr->ground;
                 chr->sumground = chr->ground / GROUND_SMOOTH_FACTOR;
 

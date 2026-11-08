@@ -38,6 +38,7 @@
 extern s32 objectiveGetStatus_WEAK(s32 objectiveNum, s32);
 
 #ifndef TARGET_N64
+#include "ap_enemy.h"
 /* PORT: GE_AIDBG=1 traces every AI list switch and AI PRINT (chrnum, list id,
  * resolved pointer), to find which code parks a chr in m_DeadAI and whether
  * ailistFindById() resolved the id. Added while debugging Natalya never
@@ -3068,6 +3069,9 @@ void                   ai(PropDefHeaderRecord *Entityp, PROP_TYPE EntityType)
                 {
                     AiSetMyAccuracyRatingRecord *ai = AiListp + Offset;
                     ChrEntityp->accuracyrating      = ai->val;
+#ifndef TARGET_N64
+                    apEnemyApplyAccuracy(ChrEntityp);
+#endif
                     Offset += sizeof(AiSetMyAccuracyRatingRecord);
                     break;
                 }
@@ -3619,7 +3623,20 @@ void                   ai(PropDefHeaderRecord *Entityp, PROP_TYPE EntityType)
                         }
                         else
                         {
+#ifndef TARGET_N64
+                            void *held = NULL;
+
+                            if (apEnemyTakeGive(ChrEntityp, model, ai->ITEM_NUM, flags, &held))
+                            {
+                                prop = (PropRecord *) held;
+                            }
+                            else
+                            {
+                                prop = chrGiveWeapon(ChrEntityp, model, ai->ITEM_NUM, flags);
+                            }
+#else
                             prop = chrGiveWeapon(ChrEntityp, model, ai->ITEM_NUM, flags);
+#endif
                         }
                     }
                     if (prop)

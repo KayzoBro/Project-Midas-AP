@@ -33,6 +33,7 @@
 #include "frametiming.h" /* portTickCadence - see the guard accuracy note in chrlvUpdateShotbondsum */
 #ifndef TARGET_N64
 #include "cheat.h" /* cheatIsActive(CHEAT_PORT_ENEMY_FF) - chrlvFireWeaponRelated */
+#include "ap_enemy.h"
 #endif
 
 #ifndef TARGET_N64
@@ -260,6 +261,10 @@ void expand_09_characters(s32 stageid, GuardRecord *arg1, s32 arg2)
     struct Model *sp38; //56
     s32 bodyid;
     s32 headid;
+#ifndef TARGET_N64
+    s32 apEligible = 0;
+    s32 apHead = -1;
+#endif
 
     pad = &g_CurrentSetup.pads[arg1->PadID];
 
@@ -269,10 +274,31 @@ void expand_09_characters(s32 stageid, GuardRecord *arg1, s32 arg2)
         bodyid = (arg1->BodyID == 0xFFFF)
             ? get_current_random_body()
             : arg1->BodyID;
+#ifndef TARGET_N64
+        {
+            int nb = bodyid;
+            int nh = -1;
+
+            apEligible = apEnemyPlan(bodyid, arg1->BodyID == 0xFFFF, (int) arg1->HeadID,
+                                     (arg1->bitflags & 8) != 0, (int) arg1->chrnum, &nb, &nh);
+            if (apEligible)
+            {
+                bodyid = nb;
+                apHead = nh;
+            }
+        }
+#endif
 
         cmfr = &c_item_entries[bodyid];
         if (cmfr->hasHead == 0)
         {
+#ifndef TARGET_N64
+            if (apHead >= 0)
+            {
+                headid = apHead;
+            }
+            else
+#endif
             headid = (arg1->HeadID >= 0)
                 ? arg1->HeadID
                 : bodyChooseHead(bodyid);
@@ -310,6 +336,12 @@ void expand_09_characters(s32 stageid, GuardRecord *arg1, s32 arg2)
                 }
 
                 arg1->Data = temp_v0_5;
+#ifndef TARGET_N64
+                if (apEligible)
+                {
+                    apEnemyCommit(temp_v0_5);
+                }
+#endif
             }
         }
     }
@@ -1218,7 +1250,9 @@ void chrlvInitActAttack(ChrRecord *self, struct anim_group_info **arg1, s32 arg2
         anim_index = (s32) (((dist * 32.0f) / M_TAU_F) + 0.5f);
     }
 
-    if (anim_index >= 0x20)
+    /* A heading outside one turn makes this negative. The table is 32
+     * entries, and a negative index reads off the front of it. */
+    if (anim_index < 0 || anim_index >= 0x20)
     {
         anim_index = 0;
     }
@@ -2628,6 +2662,12 @@ bool handles_shot_actors(ChrRecord *self, s32 hitpart, coord3d *vector, s32 weap
             damageToCause = 0.0f;
         }
 
+        /* Baron Samedi only dies to the Golden Gun. */
+        if (self->bodynum == BODY_Baron_Samedi && weaponid != ITEM_GOLDENGUN)
+        {
+            damageToCause = 0.0f;
+        }
+
         if (self->prop->type == PROP_TYPE_VIEWER)
         {
             playerNum = get_cur_playernum();
@@ -2715,6 +2755,12 @@ s32 chrlvExplosionDamage(ChrRecord *self, coord3d *arg1, f32 damage, s32 arg3)
 
     self->chrflags |= CHRFLAG_WAS_HIT;
     if (self->chrflags & CHRFLAG_INVINCIBLE)
+    {
+        return 0;
+    }
+
+    /* Explosions do not kill Baron Samedi. Only the Golden Gun does. */
+    if (self->bodynum == BODY_Baron_Samedi)
     {
         return 0;
     }
@@ -11229,6 +11275,23 @@ PropRecord *chrSpawnAtCoord(s32 bodynum, s32 headnum, coord3d *pos, StandTile *s
 
     if (chrGetNumFree() >= 3)
     {
+#ifndef TARGET_N64
+        int apEligible = 0;
+        {
+            int nb = bodynum;
+            int nh = -1;
+
+            apEligible = apEnemyPlan(bodynum, 0, headnum, 0, -1, &nb, &nh);
+            if (apEligible)
+            {
+                bodynum = nb;
+                if (nh >= 0)
+                {
+                    headnum = nh;
+                }
+            }
+        }
+#endif
         if (headnum < 0)
         {
             headnum = bodyChooseHead(bodynum);
@@ -11254,6 +11317,12 @@ PropRecord *chrSpawnAtCoord(s32 bodynum, s32 headnum, coord3d *pos, StandTile *s
                     chr          = chrprop->chr;
                     chr->headnum = headnum;
                     chr->bodynum = bodynum;
+#ifndef TARGET_N64
+                    if (apEligible)
+                    {
+                        apEnemyCommit(chr);
+                    }
+#endif
 
                     return chrprop;
                 }
