@@ -1935,6 +1935,11 @@ typedef enum MENU
     MENU_PORT_SHEET,   /* PORT: the Options folder's placeholder pages (Gameplay
                         * / Control / Display rows, CREDITS tab) - front.c
                         * menu1C */
+    MENU_ARCHIPELAGO,  /* PORT: room login. Solo play stays here until a seed is connected. */
+    MENU_AP_STATUS,    /* PORT: folder page for the seed's goal and check progress. */
+#ifdef GE_AP_DEBUG
+    MENU_AP_DEBUG,     /* PORT: folder page that fires client effects. Compile flag only. */
+#endif
     MENU_MAX
 } MENU;
 

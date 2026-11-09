@@ -405,6 +405,7 @@ static void conCmdHelp(void)
     conPrintLn(0, "  list [text]           the cl_ settings matching key or label");
     conPrintLn(0, "  harness [text]        the GE_* diagnostic env knobs");
     conPrintLn(0, "  clear                 empty the scrollback");
+    conPrintLn(0, "  ap                    Archipelago (ap help)");
     conPrintLn(0, "  help                  this");
     conPrintLn(0, "keys: PgUp/PgDn/Home/End scroll, Up/Down recall");
 }
@@ -783,6 +784,11 @@ static void conExecute(char *line)
             snprintf(value, sizeof(value), "%s", arg1);
         }
         conCmdClient(cmd + 3, arg1 != NULL ? value : NULL);
+    }
+    else if (conStrEqI(cmd, "ap"))
+    {
+        extern void apConsole(const char *verb, const char *rest);
+        apConsole(arg1 != NULL ? arg1 : "", arg2);
     }
     else if (conStrEqI(cmd, "clear"))
     {

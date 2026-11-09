@@ -34,6 +34,8 @@ extern s32 portInputOptionGet(const char *key, s32 *out);
 extern s32 portInputOptionSet(const char *key, s32 value);
 extern s32 portJoyPortOptionGet(const char *key, s32 *out);
 extern s32 portJoyPortOptionSet(const char *key, s32 value);
+extern s32 portApOptionGet(const char *key, s32 *out);
+extern s32 portApOptionSet(const char *key, s32 value);
 extern s32 portIniWriteStrs(const char *section, const char *const *keys, const char *const *vals, s32 n);
 
 enum {
@@ -42,6 +44,7 @@ enum {
     PORTOPT_CAT_MOUSE,
     PORTOPT_CAT_CONTROLLER,
     PORTOPT_CAT_AUDIO,
+    PORTOPT_CAT_ARCHIPELAGO,
     PORTOPT_CAT_COUNT
 };
 
@@ -51,6 +54,7 @@ static const char *const sCategoryLabels[PORTOPT_CAT_COUNT] = {
     "Mouse\n",
     "Controller\n",
     "Audio\n",
+    "Archipelago\n",
 };
 
 enum {
@@ -160,7 +164,9 @@ static const char *const sStickSensText[] = {
     "1.5\n", "1.6\n", "1.7\n", "1.8\n", "1.9\n", "2.0\n", "2.1\n", "2.2\n", "2.3\n", "2.4\n",
     "2.5\n", "2.6\n", "2.7\n", "2.8\n", "2.9\n", "3.0\n"
 };
-/* the ini spelling: stick_scale is a float there (1.0), never the tenths */
+static const s32 sPopPosVals[] = { 0, 1, 2, 3 };
+static const char *const sPopPosText[] = { "Top Right\n", "Top Left\n", "Bottom Right\n", "Bottom Left\n" };
+static const char *const sPopPosIni[] = { "top_right", "top_left", "bottom_right", "bottom_left" };
 static const char *const sStickSensIni[] = {
     "0.5", "0.6", "0.7", "0.8", "0.9", "1.0", "1.1", "1.2", "1.3", "1.4",
     "1.5", "1.6", "1.7", "1.8", "1.9", "2.0", "2.1", "2.2", "2.3", "2.4",
@@ -228,7 +234,8 @@ static const struct PortOpt sOpts[] = {
     TOGGLE("fix_shootthrough",   "[display]", "Shoot-Through Fix\n",  PORTOPT_CAT_GAMEPLAY),
     TOGGLE("true_enemy_rockets", "[display]", "True Enemy Rockets\n", PORTOPT_CAT_GAMEPLAY),
     /* adzy (play as ssf character) is ini-only */
-    TOGGLE("unlock_all",         "[display]", "Unlock All\n",         PORTOPT_CAT_GAMEPLAY),
+    // Useless in Archipelago, yurk !
+    //TOGGLE("unlock_all",         "[display]", "Unlock All\n",         PORTOPT_CAT_GAMEPLAY),
     TOGGLE("always_crosshair",   "[display]", "Always Crosshair\n",   PORTOPT_CAT_GAMEPLAY),
     /* shadow_alpha is ini-only - video.c still reads it */
     TOGGLE("aim_lock",           "[display]", "Aim Lock\n",           PORTOPT_CAT_GAMEPLAY),
@@ -320,12 +327,18 @@ static const struct PortOpt sOpts[] = {
     INTR  ("music_volume",      "[display]", "Music Volume\n",  PORTOPT_CAT_AUDIO, 0, 100, 5, "%"),
     INTR  ("sfx_volume",        "[display]", "Sound Volume\n",  PORTOPT_CAT_AUDIO, 0, 100, 5, "%"),
     TOGGLE("stereo_pan",        "[display]", "Stereo Pan\n",    PORTOPT_CAT_AUDIO),
+
+    /* [archipelago] - the login screen edits the same keys. Host, name and
+     * password stay on that screen; these are the ones a left/right row can own. */
+    TOGGLE("popup",    "[archipelago]", "Popup\n",     PORTOPT_CAT_ARCHIPELAGO),
+    ENUMR ("popup_pos","[archipelago]", "Popup Place\n", PORTOPT_CAT_ARCHIPELAGO, sPopPosVals, sPopPosText, sPopPosIni),
+    TOGGLE("tls",      "[archipelago]", "TLS\n",       PORTOPT_CAT_ARCHIPELAGO),
 };
 
 #define PORTOPT_COUNT ((s32)(sizeof(sOpts) / sizeof(sOpts[0])))
 
 /* every section named in the table, in save order */
-static const char *const sSections[] = { "[display]", "[input]" };
+static const char *const sSections[] = { "[display]", "[input]", "[archipelago]" };
 
 void portOptSave(void);
 
@@ -333,14 +346,16 @@ void portOptSave(void);
 
 static s32 optGet(const char *key, s32 *out)
 {
-    return portVideoOptionGet(key, out) || portInputOptionGet(key, out) || portJoyPortOptionGet(key, out);
+    return portVideoOptionGet(key, out) || portInputOptionGet(key, out) || portJoyPortOptionGet(key, out)
+        || portApOptionGet(key, out);
 }
 
 static void classicPartChanged(const char *key, s32 on);   /* "classic mode" below */
 
 static s32 optSet(const char *key, s32 v)
 {
-    if (portVideoOptionSet(key, v) || portInputOptionSet(key, v) || portJoyPortOptionSet(key, v))
+    if (portVideoOptionSet(key, v) || portInputOptionSet(key, v) || portJoyPortOptionSet(key, v)
+        || portApOptionSet(key, v))
     {
         classicPartChanged(key, v != 0);
         return 1;

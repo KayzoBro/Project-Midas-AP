@@ -1771,6 +1771,17 @@ static int inputFixedKeyDown(const SDL_KeyboardEvent *key)
     const SDL_Scancode sc = key->keysym.scancode;
     const int repeat = key->repeat != 0;
 
+    {   /* Rebinding a supply key owns the keyboard, including Grave and Escape. */
+        extern int apSupplyCaptureActive(void);
+        extern int apSupplyKeyDown(int scancode, int repeat);
+
+        if (apSupplyCaptureActive())
+        {
+            apSupplyKeyDown((int) sc, repeat);
+            return 1;
+        }
+    }
+
     if (sc == SDL_SCANCODE_GRAVE)
     {
         {   /* Where this key types a digit or letter (Hungarian layout) it
@@ -1840,6 +1851,38 @@ static int inputFixedKeyDown(const SDL_KeyboardEvent *key)
         return 1; /* console open: the keyboard is the prompt's, not the game's */
     }
 
+    {   /* Archipelago login owns the keyboard the same way the console does. */
+        extern s32 apMenuWantsKeys(void);
+        extern void apMenuKey(int kind);
+        if (apMenuWantsKeys())
+        {
+            if (!repeat)
+            {
+                switch (sc)
+                {
+                case SDL_SCANCODE_UP:        apMenuKey(1); break;
+                case SDL_SCANCODE_DOWN:      apMenuKey(2); break;
+                case SDL_SCANCODE_LEFT:      apMenuKey(3); break;
+                case SDL_SCANCODE_RIGHT:     apMenuKey(4); break;
+                case SDL_SCANCODE_BACKSPACE: apMenuKey(5); break;
+                case SDL_SCANCODE_RETURN:
+                case SDL_SCANCODE_KP_ENTER:  apMenuKey(6); break;
+                default: break;
+                }
+            }
+            return 1;
+        }
+    }
+
+    {   /* Body armor and ammo cache. Consumed so the key is not also a game bind. */
+        extern int apSupplyKeyDown(int scancode, int repeat);
+
+        if (apSupplyKeyDown((int) sc, repeat))
+        {
+            return 1;
+        }
+    }
+
     if (sc == SDL_SCANCODE_F1)
     {
         /* F1 is only the default mouse-unlock key: while [controls]
@@ -1880,6 +1923,23 @@ static int inputFixedKeyDown(const SDL_KeyboardEvent *key)
 static int inputEventWatch(void *userdata, SDL_Event *event)
 {
     (void)userdata;
+    {   /* The login screen needs SDL's text session; the console keeps its own. */
+        extern s32 apMenuWantsKeys(void);
+        static s32 was;
+        s32 on = apMenuWantsKeys();
+        if (on != was)
+        {
+            was = on;
+            if (on)
+            {
+                SDL_StartTextInput();
+            }
+            else if (!portConIsOpen())
+            {
+                SDL_StopTextInput();
+            }
+        }
+    }
 
     /* JOYDEVICE* fires for every stick (CONTROLLERDEVICE* only for mapped
      * ones), so it drives the slot reassign. ADDED also fires for devices
@@ -1929,6 +1989,19 @@ static int inputEventWatch(void *userdata, SDL_Event *event)
         inputFixedKeyDown(&event->key);
         break;
     case SDL_TEXTINPUT:
+        {
+            extern s32 apMenuWantsKeys(void);
+            extern void apMenuText(unsigned char c);
+            if (apMenuWantsKeys() && !portConIsOpen())
+            {
+                const char *t = event->text.text;
+                while (*t != '\0')
+                {
+                    apMenuText((unsigned char) *t++);
+                }
+                break;
+            }
+        }
         if (portConIsOpen())
         {
             const char *t = event->text.text;
