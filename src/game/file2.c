@@ -526,6 +526,14 @@ void fileValidateSaves(void)
     s32 i;
     s32 *temp;
 
+#ifndef TARGET_N64
+    /* One cart per Archipelago seed. The read below follows that file. */
+    {
+        extern void apBindCartSave(void);
+        apBindCartSave();
+    }
+#endif
+
     if (fileGamePakProbe())
     {
         checksumOK = TRUE;
@@ -675,6 +683,17 @@ STAGESTATUS fileIsStageUnlockedAtDifficulty(s32 foldernum, LEVEL_SOLO_SEQUENCE l
         (levelid >= SP_LEVEL_DAM && levelid < SP_LEVEL_MAX) &&
         (difficulty >= DIFFICULTY_AGENT && difficulty < DIFFICULTY_MAX))
     {
+#ifndef TARGET_N64
+        {
+            /* Archipelago, when enabled, replaces the cart's folder progression. */
+            extern s32 apStageStatus(s32 levelid, s32 difficulty);
+            s32 apst = apStageStatus((s32) levelid, (s32) difficulty);
+            if (apst >= 0)
+            {
+                return (STAGESTATUS) apst;
+            }
+        }
+#endif
 #ifdef GE_UNLOCK_ALL
         /* Testing build (cmake -DGE_UNLOCK_ALL=ON): every solo mission, bonus
          * stage and difficulty reads as completed. This is the single choke

@@ -4,6 +4,13 @@
 #include "front.h"
 #ifndef TARGET_N64
 #include <stdio.h> /* stderr - mission-end diagnostics */
+#include "ap_client.h"
+#include "ap_ids.h"
+extern bool portFileGetIsCheatUnlockedRaw(save_data *save, s32 cheat);
+extern save_data *fileGetSaveForFoldernum(u32 folder);
+extern bool fileIsCradleCompletedForFolder(s32 folder);
+extern bool fileIsAztecCompletedOnSecretOr00ForFolder(s32 folder);
+extern bool fileIsEgyptCompletedOn00ForFolder(int foldernum);
 #endif
 
 f32 get_007_reaction_speed(void)
@@ -70,7 +77,39 @@ void end_of_mission_briefing(void)
     if ((-1 < briefingpage) && selected_difficulty != DIFFICULTY_007 && g_AppendCheatSinglePlayer == FALSE)
     {
         var1 = solo_target_time_array[mission_folder_setup_entries[briefingpage].mission_num][selected_difficulty];
+#ifndef TARGET_N64
+        {
+            s32 apStage = mission_folder_setup_entries[briefingpage].mission_num;
+
+            fileUnlockStageInFolderAtDifficulty(selected_folder_num, mission_folder_setup_entries[briefingpage].mission_num, selected_difficulty, getMissiontimer() / 0x3c);
+            /* The folder already reads Cradle as finished once the Archipelago
+             * check is stored, which happens before this debrief. Compare the
+             * mission just played, not that flag. */
+            if (apStage == SP_LEVEL_CRADLE)
+            {
+                apOnCheatUnlocked(AP_CHEAT_MAGNUM);
+            }
+            if (apStage == SP_LEVEL_AZTEC
+                && (selected_difficulty == DIFFICULTY_SECRET || selected_difficulty == DIFFICULTY_00))
+            {
+                apOnCheatUnlocked(AP_CHEAT_LASER);
+            }
+            if (apStage == SP_LEVEL_EGYPT && selected_difficulty == DIFFICULTY_00)
+            {
+                apOnCheatUnlocked(AP_CHEAT_GOLDEN_GUN);
+            }
+            if (var1 > 0 && (getMissiontimer() / GAME_TICKRATE) <= var1)
+            {
+                save_data *apSave = fileGetSaveForFoldernum(selected_folder_num);
+                if (apSave != NULL && !portFileGetIsCheatUnlockedRaw(apSave, apStage))
+                {
+                    apOnCheatUnlocked(apStage);
+                }
+            }
+        }
+#else
         fileUnlockStageInFolderAtDifficulty(selected_folder_num, mission_folder_setup_entries[briefingpage].mission_num, selected_difficulty, getMissiontimer() / 0x3c);
+#endif
 #ifndef TARGET_N64
         fprintf(stderr, "ge: debrief: stage %d @ difficulty %d status=%d; aztec agent=%d secret=%d 00=%d (0 locked 1 unlocked 3 completed)\n",
                 mission_folder_setup_entries[briefingpage].mission_num, selected_difficulty,

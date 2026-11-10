@@ -62,6 +62,18 @@ OSPifRam __osPfsPifRam;              /* PIF-ram mirror; stays zeroed on PC */
  * immediately — honest "nothing will ever arrive" for the phase-2 scaffold.
  */
 /* no window, no message box: a headless build has said it on stderr already */
+__attribute__((weak)) int portVideoScancodeFromName(const char *name)
+{
+    (void) name;
+    return 0;
+}
+
+__attribute__((weak)) const char *portVideoScancodeName(int scancode)
+{
+    (void) scancode;
+    return "";
+}
+
 __attribute__((weak)) void portShowErrorBox(const char *title, const char *text)
 {
     (void) title;
@@ -329,6 +341,20 @@ __attribute__((weak)) s32 portInputOptionGet(const char *key, s32 *out)
 }
 
 __attribute__((weak)) s32 portInputOptionSet(const char *key, s32 value)
+{
+    (void) key;
+    (void) value;
+    return 0;
+}
+
+__attribute__((weak)) s32 portApOptionGet(const char *key, s32 *out)
+{
+    (void) key;
+    (void) out;
+    return 0;
+}
+
+__attribute__((weak)) s32 portApOptionSet(const char *key, s32 value)
 {
     (void) key;
     (void) value;
@@ -1438,24 +1464,27 @@ u8 __osContAddressCrc(u16 addr)
 #define PORT_EEPROM_BLOCKS EEPROM_MAXBLOCKS /* 64 — the 4k part, NOT PD's 16k */
 #define PORT_EEPROM_SIZE (PORT_EEPROM_BLOCKS * EEPROM_BLOCK_SIZE)
 
-/* Persisted to Data/Saves/eeprom.bin: loaded lazily on first access and
- * rewritten whole (512 bytes) after every write. A missing or short file
- * behaves as a blank cart (the save checksum fails and defaults are
- * re-initialized); an old ./eeprom.bin is moved into Data/Saves on the first
- * load that finds none there. */
+/* Persisted to Data/Saves/eeprom.bin, or to a seed file chosen with
+ * portEepromSelect. Loaded lazily on first access and rewritten whole
+ * (512 bytes) after every write. A missing or short file behaves as a
+ * blank cart (the save checksum fails and defaults are re-initialized);
+ * an old ./eeprom.bin is moved into Data/Saves on the first load that
+ * finds none there. That move applies only to the default file. */
 #define PORT_EEPROM_DIR  "Data/Saves"
 #define PORT_EEPROM_FILE PORT_EEPROM_DIR "/eeprom.bin"
 #define PORT_EEPROM_OLD  "eeprom.bin"   /* where older builds kept it (next to the exe) */
 
 static u8 sEeprom[PORT_EEPROM_SIZE];
+static char sEepromRel[192] = PORT_EEPROM_FILE;
+static int sEepromLoaded;
 
 static void eepromEnsureDir(void)
 {
     extern const char *portRootPath(const char *name);
-    static const char *const dirs[] = { "Data", PORT_EEPROM_DIR };
+    static const char *const dirs[] = { "Data", PORT_EEPROM_DIR, "Data/Saves/ap" };
     int i;
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 3; i++) {
         char path[1024];
         struct stat st;
 
@@ -1470,19 +1499,47 @@ static void eepromEnsureDir(void)
     }
 }
 
+static void eepromLoad(void);
+static void eepromFlush(void);
+
+void portEepromDirs(void)
+{
+    eepromEnsureDir();
+}
+
+/* 1 when the backing file changed. NULL keeps Data/Saves/eeprom.bin. */
+int portEepromSelect(const char *rel)
+{
+    if (rel == NULL || rel[0] == '\0') {
+        rel = PORT_EEPROM_FILE;
+    }
+    if (strcmp(sEepromRel, rel) == 0) {
+        return 0;
+    }
+    /* An unread buffer is still zeros. Flushing it would wipe the previous file. */
+    if (sEepromLoaded) {
+        eepromFlush();
+    }
+    snprintf(sEepromRel, sizeof(sEepromRel), "%s", rel);
+    memset(sEeprom, 0, sizeof(sEeprom));
+    sEepromLoaded = 0;
+    eepromLoad();
+    return 1;
+}
+
 static void eepromLoad(void)
 {
     extern FILE *portRootFopen(const char *name, const char *mode);
     extern const char *portRootPath(const char *name);
-    static int loaded;
     FILE *f;
 
-    if (loaded) {
+    if (sEepromLoaded) {
         return;
     }
-    loaded = 1;
-    f = portRootFopen(PORT_EEPROM_FILE, "rb");
-    if (f == NULL && (f = portRootFopen(PORT_EEPROM_OLD, "rb")) != NULL) {
+    sEepromLoaded = 1;
+    f = portRootFopen(sEepromRel, "rb");
+    if (f == NULL && strcmp(sEepromRel, PORT_EEPROM_FILE) == 0
+            && (f = portRootFopen(PORT_EEPROM_OLD, "rb")) != NULL) {
         /* the pre-Data/Saves file: move it, so the next save lands beside it */
         char from[1024];
 
@@ -1500,7 +1557,7 @@ static void eepromLoad(void)
     if (f != NULL) {
         size_t n = fread(sEeprom, 1, sizeof(sEeprom), f);
         fclose(f);
-        portConLogf("ge: eeprom.bin loaded (%u bytes)\n", (unsigned)n);
+        portConLogf("ge: eeprom loaded %s (%u bytes)\n", sEepromRel, (unsigned)n);
     }
 }
 
@@ -1511,13 +1568,13 @@ static void eepromFlush(void)
     FILE *f;
 
     eepromEnsureDir();
-    f = portRootFopen(PORT_EEPROM_FILE, "wb");
+    f = portRootFopen(sEepromRel, "wb");
     if (f == NULL) {
         static int warned;
         if (!warned) {
             warned = 1;
             portConLogf("ge: cannot write %s - saves are memory-only\n",
-                    portRootPath(PORT_EEPROM_FILE));
+                    portRootPath(sEepromRel));
         }
         return;
     }
