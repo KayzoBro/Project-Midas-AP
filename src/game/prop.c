@@ -5,6 +5,8 @@
 #include <stdio.h>  /* portLintSetup reports */
 #include <stdlib.h> /* malloc - portRestoreSetupRegion snapshots */
 #include <string.h>
+#include "ap_enemy.h"
+extern int apSurvivalActive(void);
 #endif
 #include "game/mp_weapon.h"
 #include "game/bondview_r.h"
@@ -581,6 +583,18 @@ void weaponAssignToHome(s32 arg0, WeaponObjRecord* weapon, s32 cmdindex)
                 }
             }
 
+#ifndef TARGET_N64
+            {
+                int apItem = (s8) weapon->weaponnum;
+                int apProp = weapon->obj;
+
+                if (apEnemyRewriteAssigned(chr, &apItem, &apProp))
+                {
+                    weapon->weaponnum = (s8) apItem;
+                    weapon->obj = (s16) apProp;
+                }
+            }
+#endif
             weaponLoadProjectileModels((s8)weapon->weaponnum);
             sub_GAME_7F052030(weapon, chr);
         }
@@ -596,7 +610,11 @@ void weaponAssignToHome(s32 arg0, WeaponObjRecord* weapon, s32 cmdindex)
         hastoken = 1;
         giveweapon = 1;
 
-        if (getPlayerCount() >= 2)
+        if (getPlayerCount() >= 2
+#ifndef TARGET_N64
+            || apSurvivalActive()
+#endif
+           )
         {
             lastmpweaponnum = -1;
 
@@ -1940,6 +1958,18 @@ void proplvreset2(enum LEVELID stageId)
         {
             strcat(strResource, "mp_"); // -> "Ump_"
         }
+#ifndef TARGET_N64
+        else
+        {
+            /* Survival is one player on the arena the multiplayer grid picked. */
+            extern int apSurvivalActive(void);
+
+            if (apSurvivalActive())
+            {
+                strcat(strResource, "mp_");
+            }
+        }
+#endif
 
         strcat(strResource, setup_text_pointers[stageId] + 1); // Add remaining text back U[mp_] +
                                                                // setupxxxZ
@@ -2090,6 +2120,15 @@ void proplvreset2(enum LEVELID stageId)
                 g_CurrentSetup.waypointgroups[i2].waypoints = SETUP_PROMOTE(local_stage, g_CurrentSetup.waypointgroups[i2].waypoints);
             }
         }
+#ifndef TARGET_N64
+        {
+            /* Survival's arenas have an empty path list. The shared stages
+             * keep the solo pads, so the solo graph can be used as it is. */
+            extern void apSurvivalGraftPaths(void);
+
+            apSurvivalGraftPaths();
+        }
+#endif
 
         // Convert ailist pointers a.k.a. Action Blocks from file-local to proper pointers
         {
@@ -2220,7 +2259,18 @@ void proplvreset2(enum LEVELID stageId)
 
         if (withchrs)
         {
-            alloc_init_GUARDdata_entries(load_proptype(PROPDEF_GUARD));
+            s32 guardCount = load_proptype(PROPDEF_GUARD);
+#ifndef TARGET_N64
+            {
+                extern int apSurvivalActive(void);
+
+                if (apSurvivalActive())
+                {
+                    guardCount += 16;
+                }
+            }
+#endif
+            alloc_init_GUARDdata_entries(guardCount);
             numAnimatedObjects += load_proptype(PROPDEF_GUARD);
             numObjects += load_proptype(PROPDEF_COLLECTABLE);
             numObjects += load_proptype(PROPDEF_KEY);
@@ -2261,7 +2311,23 @@ void proplvreset2(enum LEVELID stageId)
         for (i8 = 0; i8 < getPlayerCount(); i8++)
         {
             set_cur_player(i8);
-            alloc_additional_item_slots(load_proptype(PROPDEF_LINK));
+            {
+                s32 slots = load_proptype(PROPDEF_LINK);
+#ifndef TARGET_N64
+                /* The watch holds 30 items. A shared weapon inventory can
+                 * already be that many guns, so a tool such as the GoldenEye
+                 * key has nowhere to go. The extra lines cover every gun,
+                 * every mission tool, and a dual of each. */
+                {
+                    extern int apSeedReady(void);
+                    if (apSeedReady())
+                    {
+                        slots += 48;
+                    }
+                }
+#endif
+                alloc_additional_item_slots(slots);
+            }
         }
 
         if (g_CurrentSetup.propDefs)
@@ -2464,7 +2530,11 @@ void proplvreset2(enum LEVELID stageId)
                         s32 ammoqty = 1;
                         s32 i9;
 
-                        if (getPlayerCount() >= 2)
+                        if (getPlayerCount() >= 2
+#ifndef TARGET_N64
+                            || apSurvivalActive()
+#endif
+                           )
                         {
                             struct s_mp_weapon_set *mpweapon = &getPtrMPWeaponSetData()[lastmpweaponnum];
                             

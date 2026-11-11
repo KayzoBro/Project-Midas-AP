@@ -221,29 +221,53 @@ void bondviewLoadSetupIntroSection(void)
 
                     if (check_ramrom_flags() == intro_item->is_demo_playback)
                     {
-                        weaponLoadProjectileModels(intro_item->item_right);
-
-                        if (intro_item->item_left >= 0)
+#ifndef TARGET_N64
+                        extern s32 apAllowIntroItem(s32 itemId);
+                        extern s32 apEquipIntroItem(s32 itemId);
+                        s32 giveRight = apAllowIntroItem(intro_item->item_right);
+                        s32 giveLeft = (intro_item->item_left >= 0) && apAllowIntroItem(intro_item->item_left);
+#else
+                        s32 giveRight = 1;
+                        s32 giveLeft = intro_item->item_left >= 0;
+#endif
+                        if (giveRight)
+                        {
+                            weaponLoadProjectileModels(intro_item->item_right);
+                        }
+                        if (giveLeft)
                         {
                             weaponLoadProjectileModels(intro_item->item_left);
+                        }
+
+                        if (giveRight && giveLeft)
+                        {
                             bondinvAddDoublesInvItem(intro_item->item_right, intro_item->item_left);
                         }
-                        else
+                        else if (giveRight)
                         {
                             bondinvAddInvItem(intro_item->item_right);
                         }
-
-                        if (set_starting_weapon == 0)
+                        else if (giveLeft)
                         {
-                            starting_weapon[GUNRIGHT] = intro_item->item_right;
+                            bondinvAddInvItem(intro_item->item_left);
+                        }
 
-                            if(intro_item->item_left);
-
-                            set_starting_weapon = 1;
-
-                            if (intro_item->item_left >= 0)
+                        if (set_starting_weapon == 0 && giveRight)
+                        {
+#ifndef TARGET_N64
+                            if (apEquipIntroItem(intro_item->item_right))
+#endif
                             {
-                                starting_weapon[GUNLEFT] = intro_item->item_left;
+                                starting_weapon[GUNRIGHT] = intro_item->item_right;
+
+                                if(intro_item->item_left);
+
+                                set_starting_weapon = 1;
+
+                                if (giveLeft)
+                                {
+                                    starting_weapon[GUNLEFT] = intro_item->item_left;
+                                }
                             }
                         }
                     }
@@ -431,6 +455,11 @@ void bondviewLoadSetupIntroSection(void)
         {
             starting_weapon[GUNRIGHT] = item;
         }
+    }
+    {
+        /* Dossiers already received add their weapons on top of the level loadout. */
+        extern void apApplyLoadout(void);
+        apApplyLoadout();
     }
 #endif
 

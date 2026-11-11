@@ -21,6 +21,10 @@
 #include "file.h"
 #include "assets/obseg/text/LmpmenuE.h"
 
+#ifndef TARGET_N64
+extern int apSurvivalActive(void);
+#endif
+
 #ifdef REFRESH_PAL
 #define MPMENU_YOFF 8   /* PAL: every text row sits 8 pixels lower */
 #else
@@ -744,7 +748,13 @@ void mpwatchMenuTick(void)
         }
     }
 
-    if (player_count != 1)
+    /* Survival is one player on an arena. It uses this menu instead of the
+     * solo watch, which asks for a stage text bank the arena never loaded. */
+    if (player_count != 1
+#ifndef TARGET_N64
+        || apSurvivalActive()
+#endif
+       )
     {
         // If a player has their pause menu up when they die and the game isn't over, turn their menu off. 
         if ((g_CurrentPlayer->bonddead) && (!g_gameOverFlag))
@@ -921,6 +931,16 @@ void mpwatchMenuTick(void)
                 g_CurrentPlayer->mpjoywascentre = 1;
                 g_CurrentPlayer->apparenthealth = g_CurrentPlayer->bondhealth;
                 g_CurrentPlayer->apparentarmour = g_CurrentPlayer->bondarmour;
+#ifndef TARGET_N64
+                /* One player: freeze the stage while the menu is up. A match
+                 * leaves everyone else running. */
+                if (apSurvivalActive() && !g_pausedFlag)
+                {
+                    g_pausedFlag = 1;
+                    who_paused = get_cur_playernum();
+                    lvlSetControlsLockedFlag(1);
+                }
+#endif
             }
         }
     }
@@ -1339,7 +1359,11 @@ Gfx *mp_watch_menu_display(Gfx *gdl)
     player_count = getPlayerCount();
     self_paused = 0;
  
-    if (player_count == 1)
+    if (player_count == 1
+#ifndef TARGET_N64
+        && !apSurvivalActive()
+#endif
+       )
     {
         return gdl;
     }

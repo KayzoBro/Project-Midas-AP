@@ -1,6 +1,7 @@
 #include <os_extension.h>
 #ifndef TARGET_N64
 #include <stdio.h> /* frontDrawCursor GE_DUMP_BOND probe */
+#include "ap_client.h"
 #endif
 #include <assets/oddtextures.h>
 #include "assets/image_externs.h"
@@ -3642,6 +3643,21 @@ static void frontDropUnearnedCheats(void)
 }
 #endif
 
+#ifndef TARGET_N64
+static void modeSelectChoose(void);
+static Gfx *modeSelectDrawRows(Gfx *DL);
+static void init_menu_ap_status(void);
+static void update_menu_ap_status(void);
+static void interface_menu_ap_status(void);
+static Gfx *constructor_menu_ap_status(Gfx *DL);
+#ifdef GE_AP_DEBUG
+static void init_menu_ap_debug(void);
+static void update_menu_ap_debug(void);
+static void interface_menu_ap_debug(void);
+static Gfx *constructor_menu_ap_debug(Gfx *DL);
+#endif
+#endif
+
 void init_menu06_modeselect(void)
 {
 #ifndef TARGET_N64
@@ -3695,7 +3711,10 @@ void interface_menu06_modesel(void)
     /* PORT: the 4th entry, EXTENDED OPTIONS, is gone - its
      * settings live in the watch now (docs/port/watch-settings-pages.md) -
      * so the row block is back at Rare's own y 236/268/300, bands 243/275,
-     * cursor base 0xE2. */
+     * cursor base 0xE2. Archipelago is an extra row on the PC folder. */
+#ifndef TARGET_N64
+    modeSelectChoose();
+#else
     if (frontCheckCursorOnPreviousTab())
     {
         tab_prev_highlight = TRUE;
@@ -3732,6 +3751,7 @@ void interface_menu06_modesel(void)
             sndPlaySfx(g_musicSfxBufferPtr, DOOR_METAL_CLOSE_SFX, 0);
         }
     }
+#endif
 
     if (joyGetButtonsPressedThisFrame(PLAYER_1, B_BUTTON))
     {
@@ -3741,8 +3761,21 @@ void interface_menu06_modesel(void)
     frontUpdateControlStickPosition();
     if (gamemode == GAMEMODE_SOLO)
     {
+        s32 first = 0;
+#ifndef TARGET_N64
+        {
+            /* The cart always parked the cursor on Dam. A seed may have
+             * given a different dossier, and every folder shares that list. */
+            extern s32 apFirstUnlockedMission(void);
+            s32 unlocked = apFirstUnlockedMission();
+            if (unlocked >= 0)
+            {
+                first = unlocked;
+            }
+        }
+#endif
         frontChangeMenu(MENU_MISSION_SELECT, FALSE);
-        set_cursor_to_stage_solo(0);
+        set_cursor_to_stage_solo((LEVEL_SOLO_SEQUENCE) first);
         return;
     }
     if (gamemode == GAMEMODE_MULTI)
@@ -3816,12 +3849,203 @@ Gfx *frontSetupMenuBackground(Gfx *DL)
 
 
 
+#ifndef TARGET_N64
+/* Folder rows: solo, survival, then Archipelago. Unlocking a cheat does not
+ * add CHEAT OPTIONS. GoldenEye's multiplayer menu is not part of this project.
+ * AP Debug is the last row, and only when the build was configured with it. */
+static s32 modeHasCheats(void)
+{
+    return 0;
+}
+
+static s32 modeRowCount(void)
+{
+    s32 n = modeHasCheats() ? 4 : 3;
+#ifdef GE_AP_DEBUG
+    n++;
+#endif
+    return n;
+}
+
+static s32 modeRowY(s32 i, s32 count)
+{
+    if (count > 3)
+    {
+        return 0xC4 + i * 0x18;
+    }
+    return 0xDC + i * 0x20;
+}
+
+static s32 modeRowKind(s32 i, s32 count)
+{
+#ifdef GE_AP_DEBUG
+    if (i == count - 1)
+    {
+        return 4;
+    }
+    count--;
+#endif
+    if (count >= 4)
+    {
+        static const s32 withCheats[] = { 0, 5, 2, 3 };
+        if (i < 0 || i > 3)
+        {
+            return 0;
+        }
+        return withCheats[i];
+    }
+    {
+        static const s32 rows[] = { 0, 5, 3 };
+        if (i < 0 || i > 2)
+        {
+            return 0;
+        }
+        return rows[i];
+    }
+}
+
+static s32 modeRowIndexOf(s32 kind)
+{
+    s32 n = modeRowCount();
+    s32 i;
+
+    for (i = 0; i < n; i++)
+    {
+        if (modeRowKind(i, n) == kind)
+        {
+            return i;
+        }
+    }
+    return 0;
+}
+
+static void modeSelectChoose(void)
+{
+    s32 n = modeRowCount();
+    s32 i;
+    s32 hit = 0;
+    s32 kind;
+    s32 press = joyGetButtonsPressedThisFrame(PLAYER_1, START_BUTTON|Z_TRIG|A_BUTTON);
+
+    mission_difficulty_highlighted = -1;
+    if (frontCheckCursorOnPreviousTab())
+    {
+        tab_prev_highlight = TRUE;
+        if (press)
+        {
+            tab_prev_selected = TRUE;
+            sndPlaySfx(g_musicSfxBufferPtr, DOOR_METAL_CLOSE2_SFX, 0);
+        }
+        return;
+    }
+    for (i = 0; i < n; i++)
+    {
+        if (cursor_v_pos + 8.0f >= (f32) modeRowY(i, n))
+        {
+            hit = i;
+        }
+    }
+    kind = modeRowKind(hit, n);
+    mission_difficulty_highlighted = kind;
+    if (!press)
+    {
+        return;
+    }
+    sndPlaySfx(g_musicSfxBufferPtr, DOOR_METAL_CLOSE_SFX, 0);
+    if (kind == 0)
+    {
+        gamemode = GAMEMODE_SOLO;
+    }
+    else if (kind == 2)
+    {
+        gamemode = GAMEMODE_CHEATS;
+    }
+    else if (kind == 5)
+    {
+        extern void apSurvivalOpen(void);
+
+        apSurvivalOpen();
+    }
+#ifdef GE_AP_DEBUG
+    else if (kind == 4)
+    {
+        frontChangeMenu(MENU_AP_DEBUG, FALSE);
+    }
+#endif
+    else
+    {
+        frontChangeMenu(MENU_AP_STATUS, FALSE);
+    }
+}
+
+static Gfx *modeSelectDrawRows(Gfx *DL)
+{
+    s32 n = modeRowCount();
+    s32 i;
+
+    for (i = 0; i < n; i++)
+    {
+        s32 kind = modeRowKind(i, n);
+        s32 y = modeRowY(i, n);
+        s32 x;
+        s32 color = 0xFF;
+        s32 tw = 0;
+        s32 th = 0;
+        char num[8];
+        char *text;
+
+        sprintf(num, "%d.\n", (int) (i + 1));
+        x = 0x96;
+        DL = frontPrintText(DL, &x, &y, num, ptrFontZurichBoldChars, ptrFontZurichBold, color, viGetX(), viGetY(), 0, 0);
+        y = modeRowY(i, n);
+        if (kind == 0)
+        {
+            text = langGet((g_AppendCheatSinglePlayer != 0) ? getStringID(LTITLE, TITLE_STR_117_CHEATSELECTMISSION) : getStringID(LTITLE, TITLE_STR_29_SELECTMISSION));
+        }
+        else if (kind == 2)
+        {
+            text = langGet(getStringID(LTITLE, TITLE_STR_31_CHEATOPTIONS));
+        }
+        else if (kind == 5)
+        {
+            text = "Survival\n";
+        }
+#ifdef GE_AP_DEBUG
+        else if (kind == 4)
+        {
+            text = "AP Debug\n";
+        }
+#endif
+        else
+        {
+            text = "Archipelago\n";
+        }
+        textMeasure(&th, &tw, text, ptrFontZurichBoldChars, ptrFontZurichBold, 0);
+        x = 0xAA;
+        if (mission_difficulty_highlighted == kind)
+        {
+            DL = microcode_constructor_related_to_menus(DL, 0x94, y - 2, tw + 0xAF, y + 14, 0x32);
+        }
+        DL = frontPrintText(DL, &x, &y, text, ptrFontZurichBoldChars, ptrFontZurichBold, color, viGetX(), viGetY(), 0, 0);
+    }
+    return DL;
+}
+#endif
+
 void setCursorPOSforMode(int mode)
 {
     if (frontCursorSnapAllowed())
     {
         cursor_h_pos = 126.0f;
+#ifndef TARGET_N64
+        if (mode < 0)
+        {
+            mode = 0;
+        }
+        cursor_v_pos = (f32) (modeRowY(modeRowIndexOf(mode), modeRowCount()) + 6);
+#else
         cursor_v_pos = mode * 0x20 + 0xe2;
+#endif
     }
 }
 
@@ -3846,6 +4070,12 @@ Gfx* constructor_menu06_modesel(Gfx* DL)
     DL = frontSetupMenuBackground(DL);
     DL = microcode_constructor(DL);
 
+#ifndef TARGET_N64
+    DL = modeSelectDrawRows(DL);
+    DL = frontAddPreviousTabText(DL);
+    DL = frontDrawCursor(DL);
+    return DL;
+#else
     x = 0x96;
     y = 0xdc;
     DL = frontPrintText(DL, &x, &y, "1.\n", ptrFontZurichBoldChars, ptrFontZurichBold, 0xFF, viGetX(), viGetY(), 0, 0);
@@ -3914,10 +4144,245 @@ Gfx* constructor_menu06_modesel(Gfx* DL)
     DL = frontAddPreviousTabText(DL);
     DL = frontDrawCursor(DL);
     return DL;
+#endif
 }
 
 
 #ifndef TARGET_N64
+static Gfx *apStatusLine(Gfx *DL, s32 x, s32 y, char *text, s32 color)
+{
+    return frontPrintText(DL, &x, &y, text, ptrFontZurichBoldChars, ptrFontZurichBold, color, viGetX(), viGetY(), 0, 0);
+}
+
+static void init_menu_ap_status(void)
+{
+    gamemode = GAMEMODE_INTRO;
+    tab_next_selected = FALSE;
+    tab_prev_selected = FALSE;
+    load_walletbond();
+}
+
+static void update_menu_ap_status(void)
+{
+}
+
+static void interface_menu_ap_status(void)
+{
+    viSetFovY(FOV_Y_F);
+    viSetAspect(ASPECT_RATIO_SD);
+    viSetZRange(100.0f, 10000.0f);
+    viSetUseZBuf(FALSE);
+    /* The photograph, the OHMSS word and the stamps sit on the lines.
+     * This page keeps the paper only. */
+    disable_all_switches(walletinst[0]);
+    set_item_visibility_in_objinstance(walletinst[0], SW_TABS, 1);
+    set_item_visibility_in_objinstance(walletinst[0], SW_PAPER, 1);
+    tab_prev_highlight = FALSE;
+    if (frontCheckCursorOnPreviousTab())
+    {
+        tab_prev_highlight = TRUE;
+        if (joyGetButtonsPressedThisFrame(PLAYER_1, START_BUTTON|Z_TRIG|A_BUTTON))
+        {
+            tab_prev_selected = TRUE;
+            sndPlaySfx(g_musicSfxBufferPtr, DOOR_METAL_CLOSE2_SFX, 0);
+        }
+    }
+    if (joyGetButtonsPressedThisFrame(PLAYER_1, B_BUTTON))
+    {
+        tab_prev_selected = TRUE;
+        sndPlaySfx(g_musicSfxBufferPtr, DOOR_METAL_CLOSE2_SFX, 0);
+    }
+    frontUpdateControlStickPosition();
+    if (tab_prev_selected)
+    {
+        frontChangeMenu(MENU_MODE_SELECT, FALSE);
+        if (frontCursorSnapAllowed())
+        {
+            cursor_h_pos = 126.0f;
+            cursor_v_pos = (f32) (modeRowY(modeRowIndexOf(3), modeRowCount()) + 6);
+        }
+    }
+}
+
+static Gfx *constructor_menu_ap_status(Gfx *DL)
+{
+    struct ApFolderStatus st;
+    char line[96];
+    s32 y = 0x48;
+
+    apFolderStatus(&st);
+    DL = viSetFillColor(DL, 0, 0, 0);
+    DL = viFillScreen(DL);
+    DL = frontSetupMenuBackground(DL);
+    DL = microcode_constructor(DL);
+    DL = apStatusLine(DL, 0x46, 0x34, "ARCHIPELAGO\n", 0xFF);
+    DL = apStatusLine(DL, 0x46, y, "Goal\n", 0x70);
+    y += 0x16;
+    snprintf(line, sizeof(line), "%s\n", st.goal);
+    DL = apStatusLine(DL, 0x46, y, line, 0xFF);
+    y += 0x24;
+    DL = apStatusLine(DL, 0x46, y, "Goal progress\n", 0x70);
+    y += 0x16;
+    if (st.goalTotal > 0 && st.goalDone >= st.goalTotal)
+    {
+        snprintf(line, sizeof(line), "%d / %d  Complete\n", st.goalDone, st.goalTotal);
+    }
+    else
+    {
+        snprintf(line, sizeof(line), "%d / %d\n", st.goalDone, st.goalTotal);
+    }
+    DL = apStatusLine(DL, 0x46, y, line, 0xFF);
+    y += 0x24;
+    DL = apStatusLine(DL, 0x46, y, "Mission checks\n", 0x70);
+    y += 0x16;
+    snprintf(line, sizeof(line), "%d / %d\n", st.missionDone, st.missionTotal);
+    DL = apStatusLine(DL, 0x46, y, line, 0xFF);
+    if (st.objectiveOn)
+    {
+        y += 0x24;
+        DL = apStatusLine(DL, 0x46, y, "Objective checks\n", 0x70);
+        y += 0x16;
+        snprintf(line, sizeof(line), "%d / %d\n", st.objectiveDone, st.objectiveTotal);
+        DL = apStatusLine(DL, 0x46, y, line, 0xFF);
+    }
+    if (st.cheatOn)
+    {
+        y += 0x24;
+        DL = apStatusLine(DL, 0x46, y, "Cheat checks\n", 0x70);
+        y += 0x16;
+        snprintf(line, sizeof(line), "%d / %d\n", st.cheatDone, st.cheatTotal);
+        DL = apStatusLine(DL, 0x46, y, line, 0xFF);
+    }
+    DL = frontAddPreviousTabText(DL);
+    DL = frontDrawCursor(DL);
+    return DL;
+}
+
+#ifdef GE_AP_DEBUG
+static s32 sApDebugRow;
+
+static s32 apDebugRowY(s32 i)
+{
+    /* Sixteen rows have to stay on the folder paper. */
+    return 0x3A + i * 0x0B;
+}
+
+static void init_menu_ap_debug(void)
+{
+    gamemode = GAMEMODE_INTRO;
+    tab_next_selected = FALSE;
+    tab_prev_selected = FALSE;
+    load_walletbond();
+}
+
+static void update_menu_ap_debug(void)
+{
+}
+
+static void interface_menu_ap_debug(void)
+{
+    s32 n = apDebugCount();
+    s32 i;
+    s32 hit = 0;
+    s32 press = joyGetButtonsPressedThisFrame(PLAYER_1, START_BUTTON|Z_TRIG|A_BUTTON);
+
+    viSetFovY(FOV_Y_F);
+    viSetAspect(ASPECT_RATIO_SD);
+    viSetZRange(100.0f, 10000.0f);
+    viSetUseZBuf(FALSE);
+    disable_all_switches(walletinst[0]);
+    set_item_visibility_in_objinstance(walletinst[0], SW_TABS, 1);
+    set_item_visibility_in_objinstance(walletinst[0], SW_PAPER, 1);
+    tab_prev_highlight = FALSE;
+    if (frontCheckCursorOnPreviousTab())
+    {
+        tab_prev_highlight = TRUE;
+        if (press)
+        {
+            tab_prev_selected = TRUE;
+            sndPlaySfx(g_musicSfxBufferPtr, DOOR_METAL_CLOSE2_SFX, 0);
+        }
+    }
+    else
+    {
+        for (i = 0; i < n; i++)
+        {
+            if (cursor_v_pos + 8.0f >= (f32) apDebugRowY(i))
+            {
+                hit = i;
+            }
+        }
+        sApDebugRow = hit;
+        if (press)
+        {
+            sndPlaySfx(g_musicSfxBufferPtr, DOOR_METAL_CLOSE_SFX, 0);
+            apDebugFire(hit);
+        }
+    }
+    if (joyGetButtonsPressedThisFrame(PLAYER_1, B_BUTTON))
+    {
+        tab_prev_selected = TRUE;
+        sndPlaySfx(g_musicSfxBufferPtr, DOOR_METAL_CLOSE2_SFX, 0);
+    }
+    frontUpdateControlStickPosition();
+    if (tab_prev_selected)
+    {
+        frontChangeMenu(MENU_MODE_SELECT, FALSE);
+        if (frontCursorSnapAllowed())
+        {
+            cursor_h_pos = 126.0f;
+            cursor_v_pos = (f32) (modeRowY(modeRowIndexOf(4), modeRowCount()) + 6);
+        }
+    }
+}
+
+static Gfx *constructor_menu_ap_debug(Gfx *DL)
+{
+    s32 n = apDebugCount();
+    s32 i;
+    const char *note = apDebugNote();
+
+    DL = viSetFillColor(DL, 0, 0, 0);
+    DL = viFillScreen(DL);
+    DL = frontSetupMenuBackground(DL);
+    DL = microcode_constructor(DL);
+    DL = apStatusLine(DL, 0x46, 0x2E, "AP DEBUG\n", 0xFF);
+    for (i = 0; i < n; i++)
+    {
+        char line[64];
+        char num[8];
+        s32 x = 0x46;
+        s32 y = apDebugRowY(i);
+        s32 tw = 0;
+        s32 th = 0;
+
+        sprintf(num, "%d.\n", (int) (i + 1));
+        DL = frontPrintText(DL, &x, &y, num, ptrFontZurichBoldChars, ptrFontZurichBold, 0xFF, viGetX(), viGetY(), 0, 0);
+        snprintf(line, sizeof(line), "%s\n", apDebugLabel(i));
+        textMeasure(&th, &tw, line, ptrFontZurichBoldChars, ptrFontZurichBold, 0);
+        x = 0x5C;
+        y = apDebugRowY(i);
+        if (sApDebugRow == i)
+        {
+            DL = microcode_constructor_related_to_menus(DL, 0x44, y - 2, tw + 0x64, y + 12, 0x32);
+        }
+        DL = frontPrintText(DL, &x, &y, line, ptrFontZurichBoldChars, ptrFontZurichBold, 0xFF, viGetX(), viGetY(), 0, 0);
+    }
+    if (note != NULL && note[0] != '\0')
+    {
+        char line[80];
+        s32 x = 0x46;
+        s32 y = apDebugRowY(n) + 6;
+
+        snprintf(line, sizeof(line), "%s\n", note);
+        DL = apStatusLine(DL, x, y, line, 0xA0);
+    }
+    DL = frontAddPreviousTabText(DL);
+    DL = frontDrawCursor(DL);
+    return DL;
+}
+#endif
+
 //********************************************************************************************************
 //OPTIONS (menu1B) + CREDITS (menu1C) - PORT, docs/port/files-screen-buttons.md
 //
@@ -3946,7 +4411,9 @@ enum { PORT_SHEET_GAMEPLAY, PORT_SHEET_CONTROL, PORT_SHEET_DISPLAY, PORT_SHEET_C
         * it back there. The settings multiplayer keeps apart from solo. */
        PORT_SHEET_MPOPTS,
        /* CLASSIC: which parts Classic Mode applies, opened from VIDEO's middle tab */
-       PORT_SHEET_CLASSIC, PORT_SHEET_COUNT };
+       PORT_SHEET_CLASSIC,
+       /* ARCHIPELAGO: popup, its corner, and TLS. Opened from the Gameplay hub. */
+       PORT_SHEET_ARCHIPELAGO, PORT_SHEET_COUNT };
 /* The Options folder's rows, top to bottom, at the Files menu's own row
  * coordinates (y 0xDC, pitch 0x20). Each is a submenu:
  *
@@ -3966,8 +4433,8 @@ static const s32 port_options_row_kind[PORT_OPTIONS_ROWS] = {
 static const char *const port_sheet_title[PORT_SHEET_COUNT] = { "GAMEPLAY\n", "CONTROL\n", "AUDIO VISUAL\n",
         "CREDITS\n", "PLAYER\n", "REBIND\n", "VIDEO\n", "AUDIO\n", "GRAPHICS\n",
         "GENERAL SETTINGS\n", "HUD\n",
-        "MOUSE AND KEYBOARD\n", "CONTROLLER\n", "GENERAL CONTROL OPTIONS\n", "PORT OPTIONS\n",
-        "GAMEPLAY OPTIONS\n", "CLASSIC\n" };   /* GAMEPLAY OPTIONS is not drawn: the two-column sheet has no heading */
+        "MOUSE AND KEYBOARD\n", "CONTROLLER\n",         "GENERAL CONTROL OPTIONS\n", "PORT OPTIONS\n",
+        "GAMEPLAY OPTIONS\n", "CLASSIC\n", "ARCHIPELAGO\n" };   /* GAMEPLAY OPTIONS is not drawn: the two-column sheet has no heading */
 static s32 port_options_row_highlighted = -1; /* row under the cursor, -1 = on a tab */
 /* The folder's hubs: GAMEPLAY and AUDIO VISUAL reuse this folder screen to list
  * their pages, numbered; -1 means the folder's own three rows. A page's
@@ -3979,6 +4446,7 @@ static const s32 port_sheet_gameplay_pages[];
 static const s32 port_sheet_display_pages[];
 static s32 portOptionsRowCount(void);
 static s32 portOptionsRowKind(s32 r);
+static s32 portOptionsRowY(s32 i);
 static s32 port_sheet_kind = PORT_SHEET_CREDITS; /* which placeholder sheet menu1C shows / was asked for */
 /* Where Back goes: a sheet opened from another sheet returns to it, and one
  * opened from the Options folder returns to the folder. The tree is only two
@@ -4000,6 +4468,7 @@ s32 portMenuHarnessSheet(char first, char second)
                                       : (second == 'e') ? PORT_SHEET_GENERAL : PORT_SHEET_GAMEPLAY;
     else if (first == 'h') port_sheet_kind = PORT_SHEET_HUD;
     else if (first == 'd') port_sheet_kind = PORT_SHEET_DISPLAY;
+    else if (first == 'a' && second == 'p') port_sheet_kind = PORT_SHEET_ARCHIPELAGO; /* GE_MENU=ap */
     else if (first == 'a') port_sheet_kind = PORT_SHEET_AUDIO;   /* the aiming page was removed */
     else if (first == 'v') port_sheet_kind = PORT_SHEET_VIDEO;
     else if (first == 'm') port_sheet_kind = PORT_SHEET_MOUSEKB;
@@ -4200,7 +4669,7 @@ void interface_menu1B_portoptions(void)
         port_options_row_highlighted = 0;
         for (r = 1; r < portOptionsRowCount(); r++)
         {
-            if ((f32) (PORT_OPTIONS_ROW_Y0 + r * PORT_OPTIONS_ROW_PITCH - 2) <= cursor_v_pos)
+            if ((f32) (portOptionsRowY(r) - 2) <= cursor_v_pos)
             {
                 port_options_row_highlighted = r;
             }
@@ -4215,7 +4684,7 @@ void interface_menu1B_portoptions(void)
                 if (frontCursorSnapAllowed())
                 {
                     cursor_h_pos = 126.0f;
-                    cursor_v_pos = (f32) (PORT_OPTIONS_ROW_Y0 + 6);
+                    cursor_v_pos = (f32) (portOptionsRowY(0) + 6);
                 }
             }
             else
@@ -4251,7 +4720,7 @@ void interface_menu1B_portoptions(void)
         if (r < PORT_OPTIONS_ROWS && frontCursorSnapAllowed())
         {
             cursor_h_pos = 126.0f;
-            cursor_v_pos = (f32) (PORT_OPTIONS_ROW_Y0 + r * PORT_OPTIONS_ROW_PITCH + 6);
+            cursor_v_pos = (f32) (portOptionsRowY(r) + 6);
         }
         return;
     }
@@ -4278,7 +4747,7 @@ Gfx *constructor_menu1B_portoptions(Gfx *DL)
 
     for (i = 0; i < portOptionsRowCount(); i++)
     {   /* row i starts at the Files menu's first row (y 0xDC); band y-2 .. y+14 */
-        s32 row_y = PORT_OPTIONS_ROW_Y0 + (i * PORT_OPTIONS_ROW_PITCH);
+        s32 row_y = portOptionsRowY(i);
 
         sprintf(number, "%d.\n", i + 1);
         x = 0x96;
@@ -4387,7 +4856,8 @@ enum { SHROW_OPT, SHROW_RES, SHROW_XHAIR, SHROW_LAYOUT, SHROW_SAVELAYOUT, SHROW_
        SHROW_GOBINDS, SHROW_GOSHEET,
        SHROW_DEVNAME, /* the device's name, on the line under Input Device - text, takes no input */
        SHROW_RESETBINDS, /* the rebind page's Reset to Default */
-       SHROW_COLBREAK /* two-column sheets: the rows after it start the right column (no row of its own) */ };
+       SHROW_COLBREAK, /* two-column sheets: the rows after it start the right column (no row of its own) */
+       SHROW_APKEY /* Archipelago supply shortcut: A waits for the next key */ };
 
 /* Rebinding from the Options menu, so a player can fix their bindings before
  * starting a mission (the watch was the only bind screen). Everything
@@ -4528,7 +4998,8 @@ static const struct PortSheetRow port_sheet_rows_general[] = {
 /* PORT OPTIONS: the port's own gameplay switches. p1 ends
  * match is ini-only (default on); play as ssf character is ini-only. */
 static const struct PortSheetRow port_sheet_rows_portopts[] = {
-    { SHROW_OPT, "unlock_all" },   /* first */
+    // Naaaaaaaah !
+    //{ SHROW_OPT, "unlock_all" },   /* first */
     { SHROW_OPT, "fix_shootthrough" }, { SHROW_OPT, "distance_fading" },
     { SHROW_OPT, "true_enemy_rockets" },
     { SHROW_OPT, "unlimited_explosions" },   /* default ON */
@@ -4612,6 +5083,15 @@ static const struct PortSheetRow port_sheet_rows_pad[] = {
                                             * released outside missions whatever you
                                             * play with */
 };
+static const struct PortSheetRow port_sheet_rows_archipelago[] = {
+    { SHROW_OPT, "popup" },
+    { SHROW_OPT, "popup_pos" },
+    { SHROW_OPT, "tls" },
+#ifndef TARGET_N64
+    { SHROW_APKEY, NULL, "Body Armor\n", 0 },
+    { SHROW_APKEY, NULL, "Ammo Cache\n", 1 },
+#endif
+};
 static const struct PortSheetRow port_sheet_rows_ctlgeneral[] = {
     { SHROW_OPT, "detonate_use_reload" },   /* always_walk removed (Walk is a bind) */
     { SHROW_OPT, "shoot_next_prev" },
@@ -4620,7 +5100,7 @@ static const struct PortSheetRow port_sheet_rows_ctlgeneral[] = {
  * Mouse and Keyboard or Controller page. */
 /* THE TWO PICKERS: each folder row that is a submenu, and its pages top to
  * bottom. A SHROW_GOSHEET row carries the page it opens in port_sheet_row_bind. */
-static const s32 port_sheet_gameplay_pages[] = { PORT_SHEET_GENERAL, PORT_SHEET_HUD, PORT_SHEET_PORTOPTS };
+static const s32 port_sheet_gameplay_pages[] = { PORT_SHEET_GENERAL, PORT_SHEET_HUD, PORT_SHEET_PORTOPTS, PORT_SHEET_ARCHIPELAGO };
 static const s32 port_sheet_display_pages[] = { PORT_SHEET_VIDEO, PORT_SHEET_AUDIO };   /* GRAPHICS is empty */
 
 /** The Options folder screen's rows: its own three, or a hub's pages. */
@@ -4635,6 +5115,22 @@ static s32 portOptionsRowCount(void)
         return (s32) (sizeof(port_sheet_display_pages) / sizeof(port_sheet_display_pages[0]));
     }
     return PORT_OPTIONS_ROWS;
+}
+
+/* The crosshair stops 20px short of the folder bottom, about y 310. Four
+ * rows at the files-menu pitch start the last one at 316, past that stop,
+ * so the mouse can never land on it. */
+static s32 portOptionsRowY(s32 i)
+{
+    s32 y0 = PORT_OPTIONS_ROW_Y0;
+    s32 pitch = PORT_OPTIONS_ROW_PITCH;
+
+    if (portOptionsRowCount() > 3)
+    {
+        y0 = 0xCE;
+        pitch = 0x1C;
+    }
+    return y0 + i * pitch;
 }
 
 static s32 portOptionsRowKind(s32 r)
@@ -4658,6 +5154,7 @@ static const char *portSheetPageLabel(s32 kind)
         case PORT_SHEET_GENERAL:  return "General Settings\n";
         case PORT_SHEET_HUD:      return "HUD\n";
         case PORT_SHEET_PORTOPTS: return "Port Options\n";
+        case PORT_SHEET_ARCHIPELAGO: return "Archipelago\n";
         case PORT_SHEET_VIDEO:    return "Video\n";
         case PORT_SHEET_AUDIO:    return "Audio\n";
         case PORT_SHEET_GRAPHICS: return "Graphics\n";
@@ -4951,6 +5448,7 @@ static void portSheetBuild(s32 kind)
     if (kind == PORT_SHEET_GENERAL)  { src = port_sheet_rows_general;  n = sizeof(port_sheet_rows_general)  / sizeof(port_sheet_rows_general[0]);  }
     if (kind == PORT_SHEET_HUD)      { src = port_sheet_rows_hud;      n = sizeof(port_sheet_rows_hud)      / sizeof(port_sheet_rows_hud[0]);      }
     if (kind == PORT_SHEET_PORTOPTS) { src = port_sheet_rows_portopts; n = sizeof(port_sheet_rows_portopts) / sizeof(port_sheet_rows_portopts[0]); }
+    if (kind == PORT_SHEET_ARCHIPELAGO) { src = port_sheet_rows_archipelago; n = sizeof(port_sheet_rows_archipelago) / sizeof(port_sheet_rows_archipelago[0]); }
     if (kind == PORT_SHEET_MPOPTS)   { src = port_sheet_rows_mpopts;   n = sizeof(port_sheet_rows_mpopts)   / sizeof(port_sheet_rows_mpopts[0]);   }
     if (kind == PORT_SHEET_MOUSEKB)    { src = port_sheet_rows_mousekb;    n = sizeof(port_sheet_rows_mousekb)    / sizeof(port_sheet_rows_mousekb[0]);    }
     if (kind == PORT_SHEET_PAD)        { src = port_sheet_rows_pad;        n = sizeof(port_sheet_rows_pad)        / sizeof(port_sheet_rows_pad[0]);        }
@@ -5029,7 +5527,7 @@ static void portSheetBuild(s32 kind)
         port_sheet_row_kind[port_sheet_rows] = src[i].kind;
         port_sheet_row_opt[port_sheet_rows] = opt;
         port_sheet_row_label[port_sheet_rows] = src[i].label;
-        port_sheet_row_bind[port_sheet_rows] = (src[i].kind == SHROW_GOSHEET) ? src[i].page : -1;
+        port_sheet_row_bind[port_sheet_rows] = (src[i].kind == SHROW_GOSHEET || src[i].kind == SHROW_APKEY) ? src[i].page : -1;
         port_sheet_rows++;
     }
     if (kind == PORT_SHEET_CONTROL)
@@ -5216,7 +5714,8 @@ static s32 portSheetListCount(s32 row)
         || port_sheet_row_kind[row] == SHROW_GOBINDS
         || port_sheet_row_kind[row] == SHROW_GOSHEET
         || port_sheet_row_kind[row] == SHROW_DEVNAME
-        || port_sheet_row_kind[row] == SHROW_RESETBINDS)
+        || port_sheet_row_kind[row] == SHROW_RESETBINDS
+        || port_sheet_row_kind[row] == SHROW_APKEY)
     {
         return 0;   /* A arms a capture / steps the device / opens a page */
     }
@@ -5619,8 +6118,9 @@ static void portSheetStep(s32 row, s32 dir)
     if (port_sheet_row_kind[row] == SHROW_LAYOUT || port_sheet_row_kind[row] == SHROW_SAVELAYOUT
         || port_sheet_row_kind[row] == SHROW_DELLAYOUT || port_sheet_row_kind[row] == SHROW_BIND
         || port_sheet_row_kind[row] == SHROW_PLAYERPICK || port_sheet_row_kind[row] == SHROW_GOBINDS
-        || port_sheet_row_kind[row] == SHROW_GOSHEET || port_sheet_row_kind[row] == SHROW_DEVNAME
-        || port_sheet_row_kind[row] == SHROW_RESETBINDS)
+        || port_sheet_row_kind[row] == SHROW_GOSHEET         || port_sheet_row_kind[row] == SHROW_DEVNAME
+        || port_sheet_row_kind[row] == SHROW_RESETBINDS
+        || port_sheet_row_kind[row] == SHROW_APKEY)
     {
         return;   /* a layout is picked from the list, not stepped past */
     }
@@ -6117,6 +6617,19 @@ static const char *portSheetValueText(s32 row, s32 *colour)
         }
         return portBindValueText(port_sheet_bind_dev, port_sheet_row_bind[row]);
     }
+#ifndef TARGET_N64
+    if (port_sheet_row_kind[row] == SHROW_APKEY)
+    {
+        extern const char *apSupplyKeyLabel(int which);
+        extern int apSupplyCaptureWhich(void);
+
+        if (apSupplyCaptureWhich() == port_sheet_row_bind[row])
+        {
+            *colour = PORT_SHEET_COL_PENDING;
+        }
+        return apSupplyKeyLabel(port_sheet_row_bind[row]);
+    }
+#endif
     if (port_sheet_row_kind[row] == SHROW_DELLAYOUT)
     {   /* only one a player made: the shipped layouts are ours, and deleting
          * the one a pad is using would strand it on nothing */
@@ -6210,6 +6723,7 @@ static const char *portSheetLabel(s32 row)
     if (port_sheet_row_kind[row] == SHROW_BINDMODE) return "Input Mode\n";
     if (port_sheet_row_kind[row] == SHROW_CTRLSTYLE) return "Control Style\n";
     if (port_sheet_row_kind[row] == SHROW_BIND) return portBindLabel(port_sheet_bind_dev, port_sheet_row_bind[row]);
+    if (port_sheet_row_kind[row] == SHROW_APKEY && port_sheet_row_label[row] != NULL) return port_sheet_row_label[row];
     if (port_sheet_row_kind[row] == SHROW_XHAIR) return "Crosshair Colour\n";
     if (port_sheet_row_kind[row] == SHROW_RES) return "Resolution\n";
     if (port_sheet_row_kind[row] == SHROW_OPT && port_sheet_row_label[row] != NULL) return port_sheet_row_label[row];
@@ -7106,6 +7620,12 @@ static void portSheetLeave(s32 tohub)
 {
     s32 root;
 
+#ifndef TARGET_N64
+    {
+        extern void apSupplyCaptureCancel(void);
+        apSupplyCaptureCancel();
+    }
+#endif
     portOskClose();
     portSheetEditEnd(TRUE);
     portSheetPendingClear();
@@ -7146,7 +7666,7 @@ static void portSheetLeave(s32 tohub)
             if (frontCursorSnapAllowed())
             {
                 cursor_h_pos = 126.0f;
-                cursor_v_pos = (f32) (PORT_OPTIONS_ROW_Y0 + r * PORT_OPTIONS_ROW_PITCH + 6);
+                cursor_v_pos = (f32) (portOptionsRowY(r) + 6);
             }
             return;
         }
@@ -7414,6 +7934,28 @@ void interface_menu1C_portsheet(void)
         cursor_v_pos = hy;
         return;
     }
+#ifndef TARGET_N64
+    {
+        extern int apSupplyCaptureActive(void);
+        extern void apSupplyCaptureCancel(void);
+
+        if (apSupplyCaptureActive())
+        {
+            const f32 hx = cursor_h_pos;
+            const f32 hy = cursor_v_pos;
+
+            if (joyGetButtonsPressedThisFrame(PLAYER_1, B_BUTTON))
+            {
+                apSupplyCaptureCancel();
+                sndPlaySfx((struct ALBankAlt_s *) g_musicSfxBufferPtr, GUN_M60AMMGUN_3_SFX, NULL);
+            }
+            frontUpdateControlStickPosition();
+            cursor_h_pos = hx;
+            cursor_v_pos = hy;
+            return;
+        }
+    }
+#endif
     caphold = 0.0f;
 
     {   /* AN ARMED DEVICE ASSIGN OWNS THE TICK, like a bind capture: every
@@ -7958,6 +8500,13 @@ void interface_menu1C_portsheet(void)
                  * have several inputs; UNBIND is its own gesture, below. */
                 portBindCaptureBegin(port_sheet_bind_dev, port_sheet_row_bind[row]);
             }
+#ifndef TARGET_N64
+            else if (port_sheet_row_kind[row] == SHROW_APKEY)
+            {
+                extern void apSupplyCaptureBegin(int which);
+                apSupplyCaptureBegin(port_sheet_row_bind[row]);
+            }
+#endif
             else if (port_sheet_row_kind[row] == SHROW_BINDDEV)
             {   /* "press a button on the device": the pad
                  * that answers is pinned to this player's slot */
@@ -8422,6 +8971,16 @@ Gfx *constructor_menu1C_portsheet(Gfx *DL)
         DL = portDlgDrawNote(DL, (port_sheet_bind_dev == 0) ? "Press a Key\n" : "Press a Button\n",
                              "Del or Hold to Unbind\n");
     }
+#ifndef TARGET_N64
+    {
+        extern int apSupplyCaptureActive(void);
+
+        if (apSupplyCaptureActive())
+        {
+            DL = portDlgDrawNote(DL, "Press a Key\n", "Esc cancels, Del clears\n");
+        }
+    }
+#endif
     if (port_osk_open)
     {
         DL = portOskDraw(DL);
@@ -8756,6 +9315,91 @@ void set_cursor_to_stage_solo(LEVEL_SOLO_SEQUENCE level)
     }
 }
 
+#ifndef TARGET_N64
+/* A / SA / 00 on the 68x44 frame. Red locked, orange still to play, green done.
+ * Grey is a difficulty this seed does not check, so it is not a reason to open the mission. */
+static u32 portMissionMarkColour(s32 mission, s32 difficulty)
+{
+    s32 mark = apMissionMark(mission, difficulty);
+
+    if (mark < 0)
+    {
+        s32 st = fileIsStageUnlockedAtDifficulty(selected_folder_num, (LEVEL_SOLO_SEQUENCE) mission, (DIFFICULTY) difficulty);
+        if (st == STAGESTATUS_COMPLETED)
+        {
+            return 0x40E060FFu;
+        }
+        if (st == STAGESTATUS_LOCKED)
+        {
+            return 0xFF5050FFu;
+        }
+        return 0xFF9A20FFu;
+    }
+    if (mark == 2)
+    {
+        return 0x40E060FFu;
+    }
+    if (mark == 1)
+    {
+        return 0xFF9A20FFu;
+    }
+    if (mark == 3)
+    {
+        return 0xA0A0A0FFu;
+    }
+    return 0xFF5050FFu;
+}
+
+static Gfx *portMissionMarks(Gfx *DL, s32 mission, s32 cx, s32 cy)
+{
+    static const char *const kLabel[3] = { "A\n", "SA\n", "00\n" };
+    static const DIFFICULTY kDiff[3] = { DIFFICULTY_AGENT, DIFFICULTY_SECRET, DIFFICULTY_00 };
+    s32 width[3];
+    s32 height = 0;
+    s32 left;
+    s32 top;
+    s32 cell;
+    s32 i;
+
+    left = cx - 34;
+    top = cy - 22;
+    cell = 68 / 3;
+    for (i = 0; i < 3; i++)
+    {
+        s32 h = 0;
+
+        width[i] = 0;
+        textMeasure(&h, &width[i], (char *) kLabel[i], ptrFontBankGothicChars, ptrFontBankGothic, 0);
+        if (h > height)
+        {
+            height = h;
+        }
+    }
+    if (height < 1)
+    {
+        height = 8;
+    }
+    DL = microcode_constructor_related_to_menus(DL, left, top, left + 68, top + height, 0x000000C0u);
+    for (i = 0; i < 3; i++)
+    {
+        s32 x = left + i * cell + (cell - width[i]) / 2;
+        s32 y = top;
+        char line[4];
+        s32 n = 0;
+
+        while (kLabel[i][n] != '\0' && n < 3)
+        {
+            line[n] = kLabel[i][n];
+            n++;
+        }
+        line[n] = '\0';
+        DL = textRender(DL, &x, &y, line, ptrFontBankGothicChars, ptrFontBankGothic,
+                        portMissionMarkColour(mission, (s32) kDiff[i]), viGetX(), viGetY(), 0, 0);
+    }
+    return DL;
+}
+#endif
+
 // Address 0x7F00E458 NTSC
 Gfx *constructor_menu07_missionsel(Gfx *DL)
 {
@@ -8837,6 +9481,9 @@ Gfx *constructor_menu07_missionsel(Gfx *DL)
                 DL = textRender(DL, &sp8C, &sp88, sp90, ptrFontBankGothicChars, ptrFontBankGothic, var_s5 | 0x64, viGetX(), viGetY(), 0, 0);
 
             }
+#ifndef TARGET_N64
+            DL = portMissionMarks(DL, var_s3, cursor_xpos_table_mission_select[spD8], cursor_ypos_table_mission_select[i]);
+#endif
         }
     }
 
@@ -8864,11 +9511,31 @@ void update_menu08_difficulty(void) {
 }
 
 
+#ifndef TARGET_N64
+/* Each difficulty is its own row. A higher dossier does not open the ones below it. */
+static s32 portDifficultyOpen(s32 level, s32 difficulty)
+{
+    if (difficulty < DIFFICULTY_AGENT || difficulty > DIFFICULTY_007)
+    {
+        return 0;
+    }
+    if (difficulty == DIFFICULTY_007 && !fileIs007ModeUnlocked((u32) selected_folder_num) && !get_debug_007_unlock_flag())
+    {
+        return 0;
+    }
+    return fileIsStageUnlockedAtDifficulty(selected_folder_num, (LEVEL_SOLO_SEQUENCE) level, (DIFFICULTY) difficulty) != 0;
+}
+#endif
+
 void interface_menu08_difficulty(void)
 {
     s32 unlockedDifficulty;
+    s32 level = mission_folder_setup_entries[briefingpage].mission_num;
 
-    unlockedDifficulty = get_highest_unlocked_difficulty_for_level(mission_folder_setup_entries[briefingpage].mission_num);
+    unlockedDifficulty = get_highest_unlocked_difficulty_for_level(level);
+#ifndef TARGET_N64
+    (void) unlockedDifficulty;
+#endif
     viSetFovY(FOV_Y_F);
     viSetAspect(ASPECT_RATIO_SD);
     viSetZRange(100.0f, 10000.0f);
@@ -8881,6 +9548,24 @@ void interface_menu08_difficulty(void)
     tab_prev_highlight = FALSE;
     mission_difficulty_highlighted = DIFFICULTY_MULTI;
 
+#ifndef TARGET_N64
+    if (frontCheckCursorOnPreviousTab())
+    {
+        tab_prev_highlight = TRUE;
+    }
+    else
+    {
+        s32 diff;
+        for (diff = DIFFICULTY_007; diff >= DIFFICULTY_AGENT; diff--)
+        {
+            if (cursor_v_pos + 8.0f >= (f32) (diff * 0x1E + 0xBA) && portDifficultyOpen(level, diff))
+            {
+                mission_difficulty_highlighted = diff;
+                break;
+            }
+        }
+    }
+#else
     if (frontCheckCursorOnPreviousTab())
     {
         tab_prev_highlight = TRUE;
@@ -8901,6 +9586,7 @@ void interface_menu08_difficulty(void)
     {
         mission_difficulty_highlighted = DIFFICULTY_AGENT;
     }
+#endif
 
     if (joyGetButtonsPressedThisFrame(PLAYER_1, START_BUTTON|Z_TRIG|A_BUTTON))
     {
@@ -9039,6 +9725,9 @@ Gfx *constructor_menu08_difficulty(Gfx *DL)
     s32 i;
 
     unlockedDifficulty = get_highest_unlocked_difficulty_for_level(mission_folder_setup_entries[briefingpage].mission_num);
+#ifndef TARGET_N64
+    (void) unlockedDifficulty;
+#endif
 
     DL = viSetFillColor(DL, 0, 0, 0);
     DL = viFillScreen(DL);
@@ -9092,7 +9781,11 @@ Gfx *constructor_menu08_difficulty(Gfx *DL)
     */
     for (i=0; i<DIFFICULTY_MAX; i++)
     {
+#ifndef TARGET_N64
+        if (portDifficultyOpen(mission_folder_setup_entries[briefingpage].mission_num, i))
+#else
         if (i == 0 || unlockedDifficulty >= i)
+#endif
         {
             if (j_text_trigger)
             {
@@ -9153,8 +9846,13 @@ Gfx *constructor_menu08_difficulty(Gfx *DL)
     */
     for (i=0; i<3; i++)
     {
+#ifndef TARGET_N64
+        if (portDifficultyOpen(mission_folder_setup_entries[briefingpage].mission_num, i)
+            && (check_if_stage_completed_on_difficulty(briefingpage, i) == 3))
+#else
         if ((i == 0 || unlockedDifficulty >= i)
             && (check_if_stage_completed_on_difficulty(briefingpage, i) == 3))
+#endif
         {
             image = &mainfolderimages[IMAGE_CHECK];
 
@@ -13358,6 +14056,30 @@ Gfx * constructor_menu11_mpcontrol(Gfx *DL)
 #define PORT_MPSTAGE_COLS 5
 #define PORT_MPSTAGE_ROWS 4
 
+/* Survival only plays the arenas whose pads are the solo pads, so the solo
+ * path graph can be borrowed. Those entries sit together, from Facility on. */
+static s32 portMpStageCount(void)
+{
+    extern int apSurvivalPicking(void);
+
+    if (apSurvivalPicking())
+    {
+        return MP_STAGE_SELECTED_MAX - MP_STAGE_FACILITY;
+    }
+    return MP_STAGE_SELECTED_MAX;
+}
+
+static s32 portMpStageAt(s32 frame)
+{
+    extern int apSurvivalPicking(void);
+
+    if (apSurvivalPicking())
+    {
+        return MP_STAGE_FACILITY + frame;
+    }
+    return frame;
+}
+
 static void portMpStageInterface(void)
 {
     s32 col, row, idx;
@@ -13387,9 +14109,9 @@ static void portMpStageInterface(void)
             {
             }
             idx = row * PORT_MPSTAGE_COLS + col;
-            if (idx < MP_STAGE_SELECTED_MAX && check_if_mp_stage_unlocked(idx))
+            if (idx < portMpStageCount() && check_if_mp_stage_unlocked(portMpStageAt(idx)))
             {
-                current_mp_stage_highlighted = idx;
+                current_mp_stage_highlighted = portMpStageAt(idx);
             }
         }
     }
@@ -13417,6 +14139,30 @@ static void portMpStageInterface(void)
     frontUpdateControlStickPosition();
     if (tab_next_selected || tab_prev_selected)
     {
+        extern int apSurvivalPicking(void);
+        extern void apSurvivalCancelPick(void);
+        extern void apSurvivalStartStage(int levelId);
+
+        if (apSurvivalPicking())
+        {
+            if (tab_prev_selected)
+            {
+                apSurvivalCancelPick();
+                frontChangeMenu(MENU_MODE_SELECT, FALSE);
+            }
+            else
+            {
+                s32 idx = MP_stage_selected;
+                s32 span = MP_STAGE_SELECTED_MAX - MP_STAGE_FACILITY;
+
+                if (idx < MP_STAGE_FACILITY || idx >= MP_STAGE_SELECTED_MAX)
+                {
+                    idx = MP_STAGE_FACILITY + (s32) (randomGetNext() % (u32) span);
+                }
+                apSurvivalStartStage((int) multi_stage_setups[idx].stage_id);
+            }
+            return;
+        }
         frontChangeMenu(MENU_MP_OPTIONS, FALSE);
     }
 }
@@ -13437,20 +14183,22 @@ static Gfx *portMpStageConstruct(Gfx *DL)
 
     half.f[0] = 34.0f;   /* constructor_menu12_mpstage's photo, 0x44 x 0x2C */
     half.f[1] = 22.0f;
-    for (i = 0; i < MP_STAGE_SELECTED_MAX; i++)
+    for (i = 0; i < portMpStageCount(); i++)
     {
-        simage = &mpstageselimages[multi_stage_setups[i].photo];
+        s32 stage = portMpStageAt(i);
+
+        simage = &mpstageselimages[multi_stage_setups[stage].photo];
         pos.f[0] = (f32) cursor_xpos_table_mission_select[i % PORT_MPSTAGE_COLS];
         pos.f[1] = (f32) cursor_ypos_table_mission_select[i / PORT_MPSTAGE_COLS];
         texSelect(&DL, simage, 1, 0, 2);
-        if (i == current_mp_stage_highlighted)
+        if (stage == current_mp_stage_highlighted)
         {
             gDPSetCycleType(DL++, G_CYC_2CYCLE);
             gDPSetFogColor(DL++, 0xff, 0xff, 0xff, 0x0a);
             gDPSetRenderMode(DL++, G_RM_FOG_PRIM_A, G_RM_AA_OPA_SURF2);
             display_image_at_position(&DL, &pos.f[0], &half.f[0], 0x44, 0x2C, 0, 0, 1, 0xFF, 0xFF, 0xFF, 0xFF, simage->level > 0, 1);
         }
-        else if (check_if_mp_stage_unlocked(i))
+        else if (check_if_mp_stage_unlocked(stage))
         {
             display_image_at_position(&DL, &pos.f[0], &half.f[0], 0x44, 0x2C, 0, 0, 1, 0x6E, 0x6E, 0x6E, 0xFF, simage->level > 0, 0);
         }
@@ -13461,17 +14209,18 @@ static Gfx *portMpStageConstruct(Gfx *DL)
     }
 
     DL = microcode_constructor(DL);
-    for (i = 0; i < MP_STAGE_SELECTED_MAX; i++)
+    for (i = 0; i < portMpStageCount(); i++)
     {   /* the name along the photo's foot, as constructor_menu07_missionsel sets it */
         u8 name[32];
+        s32 stage = portMpStageAt(i);
         s32 len, h = 0, w = 0, x, y;
-        const s32 colour = (i == current_mp_stage_highlighted) ? -0x100 : 0x96969600;
+        const s32 colour = (stage == current_mp_stage_highlighted) ? -0x100 : 0x96969600;
 
-        if (!check_if_mp_stage_unlocked(i))
+        if (!check_if_mp_stage_unlocked(stage))
         {
             continue;
         }
-        snprintf((char *) name, sizeof(name) - 1, "%s", (char *) langGet(multi_stage_setups[i].select_screen_text_preset));
+        snprintf((char *) name, sizeof(name) - 1, "%s", (char *) langGet(multi_stage_setups[stage].select_screen_text_preset));
         for (len = 0; name[len] != '\0' && name[len] != '\n'; len++)
         {
             if (j_text_trigger == 0 && name[len] >= 'a' && name[len] <= 'z')
@@ -16232,9 +16981,23 @@ void load_briefing_text_for_stage(void)
      * launch) leave briefingpage invalid - fall back to the first entry
      * rather than indexing off the table (wrong briefing text beats a
      * NULL-filename crash in the fail/complete menus). */
-    if (briefingpage < 0)
+    /* A header row has no briefing file. Temple and the other arenas are not
+     * in the folder list, so the page stays invalid and the old fallback
+     * landed on that header. strcmp then read a null name. */
+    if (briefingpage < 0
+        || mission_folder_setup_entries[briefingpage].briefing_name_ptr == NULL)
     {
+        s32 i;
+
         briefingpage = 0;
+        for (i = 0; mission_folder_setup_entries[i].folder_text_preset != 0; i++)
+        {
+            if (mission_folder_setup_entries[i].briefing_name_ptr != NULL)
+            {
+                briefingpage = i;
+                break;
+            }
+        }
     }
 #endif
 
@@ -16768,6 +17531,34 @@ Gfx * constructor_menu0C_missionfailed(Gfx *DL)
 //********************************************************************************************************
 //MISSION COMPLETE
 //********************************************************************************************************
+#ifndef TARGET_N64
+/* Next folder row whose dossier is in the inventory and not yet cleared
+ * on the difficulty just played. -1 when nothing later in the folder qualifies. */
+static s32 portApNextBriefing(s32 fromPage)
+{
+    s32 i;
+    DIFFICULTY difficulty = selected_difficulty;
+
+    if (difficulty < DIFFICULTY_AGENT || difficulty >= DIFFICULTY_MAX)
+    {
+        difficulty = DIFFICULTY_AGENT;
+    }
+    for (i = fromPage + 1; mission_folder_setup_entries[i].folder_text_preset != 0; i++)
+    {
+        s32 mission = mission_folder_setup_entries[i].mission_num;
+        if (mission_folder_setup_entries[i].stage_id < 0 || mission < 0)
+        {
+            continue;
+        }
+        if (fileIsStageUnlockedAtDifficulty(selected_folder_num, (LEVEL_SOLO_SEQUENCE) mission, difficulty) == STAGESTATUS_UNLOCKED)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+#endif
+
 void init_menu0D_missioncomplete(void)
 {
     tab_next_selected = 0;
@@ -16847,36 +17638,70 @@ void interface_menu0D_missioncomplete()
     {
         if (frontCompleteAllObjectivesAliveSuccess() && (!g_AppendCheatSinglePlayer))
         {
-            if (mission_folder_setup_entries[briefingpage].mission_num == SP_LEVEL_CRADLE)
+            s32 handled = 0;
+#ifndef TARGET_N64
             {
-                frontChangeMenu(MENU_RUN_STAGE, TRUE);
-                selected_stage = LEVELID_CUBA;
-            }
-            else if (mission_folder_setup_entries[briefingpage].mission_num >= SP_LEVEL_AZTEC)
-            {
-                frontChangeMenu(MENU_MISSION_SELECT, FALSE);
-                set_cursor_to_stage_solo((s32)mission_folder_setup_entries[briefingpage].mission_num);
-            }
-            else
-            {
-                entry = briefingpage + 1;
-                while (mission_folder_setup_entries[entry].folder_text_preset)
+                extern s32 apSeedReady(void);
+                if (apSeedReady())
                 {
-                    if (mission_folder_setup_entries[entry].stage_id >= 0)
+                    extern int apGoalOutro(int mission);
+                    s32 mission = mission_folder_setup_entries[briefingpage].mission_num;
+                    s32 next = portApNextBriefing(briefingpage);
+                    handled = 1;
+                    /* The Cradle ending (credits stage) plays on Next only
+                     * after the mission that just completed the goal. */
+                    if (apGoalOutro((int) mission))
                     {
-                        break;
+                        frontChangeMenu(MENU_RUN_STAGE, TRUE);
+                        selected_stage = LEVELID_CUBA;
+                    }
+                    else if (next >= 0)
+                    {
+                        briefingpage = next;
+                        selected_stage = mission_folder_setup_entries[next].stage_id;
+                        frontChangeMenu(MENU_BRIEFING, FALSE);
+                    }
+                    else
+                    {
+                        frontChangeMenu(MENU_MISSION_SELECT, FALSE);
+                        set_cursor_to_stage_solo((s32) mission);
+                    }
+                }
+            }
+#endif
+            if (!handled)
+            {
+                if (mission_folder_setup_entries[briefingpage].mission_num == SP_LEVEL_CRADLE)
+                {
+                    frontChangeMenu(MENU_RUN_STAGE, TRUE);
+                    selected_stage = LEVELID_CUBA;
+                }
+                else if (mission_folder_setup_entries[briefingpage].mission_num >= SP_LEVEL_AZTEC)
+                {
+                    frontChangeMenu(MENU_MISSION_SELECT, FALSE);
+                    set_cursor_to_stage_solo((s32)mission_folder_setup_entries[briefingpage].mission_num);
+                }
+                else
+                {
+                    entry = briefingpage + 1;
+                    while (mission_folder_setup_entries[entry].folder_text_preset)
+                    {
+                        if (mission_folder_setup_entries[entry].stage_id >= 0)
+                        {
+                            break;
+                        }
+
+                        entry++;
                     }
 
-                    entry++;
-                }
+                    if (mission_folder_setup_entries[entry].folder_text_preset)
+                    {
+                        briefingpage = entry;
+                        selected_stage = mission_folder_setup_entries[entry].stage_id;
+                    }
 
-                if (mission_folder_setup_entries[entry].folder_text_preset)
-                {
-                    briefingpage = entry;
-                    selected_stage = mission_folder_setup_entries[entry].stage_id;
+                    frontChangeMenu(MENU_BRIEFING, FALSE);
                 }
-
-                frontChangeMenu(MENU_BRIEFING, FALSE);
             }
         }
         else
@@ -18366,8 +19191,50 @@ Gfx * constructor_menu19_spectrum(Gfx * DL)
 #endif
 
 
+#ifndef TARGET_N64
+extern void apMenuInit(void);
+extern void apMenuUpdate(void);
+extern void apMenuInterface(void);
+extern Gfx *apMenuConstructor(Gfx *dl);
+extern int apSurvivalActive(void);
+#endif
+
 void frontChangeMenu(MENU menu, s32 reload)
 {
+#ifndef TARGET_N64
+    {   /* Solo folders and mission starts wait on a connected seed. The
+         * cart's Dam-first save is not a way into the campaign. */
+        extern s32 apSeedReady(void);
+        if (!apSeedReady())
+        {
+            switch (menu)
+            {
+            case MENU_FILE_SELECT:
+            case MENU_MODE_SELECT:
+            case MENU_MISSION_SELECT:
+            case MENU_DIFFICULTY:
+            case MENU_007_OPTIONS:
+            case MENU_BRIEFING:
+            case MENU_CHEAT:
+            case MENU_RUN_STAGE:
+                if (apSurvivalActive())
+                {
+                    break;
+                }
+                menu = MENU_ARCHIPELAGO;
+                break;
+            case MENU_AP_STATUS:
+#ifdef GE_AP_DEBUG
+            case MENU_AP_DEBUG:
+#endif
+                menu = MENU_ARCHIPELAGO;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+#endif
     if ((menu == MENU_RUN_STAGE) || (menu == MENU_SPECTRUM_EMU))
     {
         is_emulating_spectrum = TRUE;
@@ -19113,6 +19980,33 @@ void menu_init(void)
 #undef MENU_INIT_ASPECT_440
 #undef MENU_INIT_ASPECT_320
 
+#ifndef TARGET_N64
+    {   /* A dropped room sends the solo menus back to the login. A mission
+         * already running is left alone until it returns here. */
+        extern s32 apSeedReady(void);
+        if (!apSeedReady())
+        {
+            switch (current_menu)
+            {
+            case MENU_FILE_SELECT:
+            case MENU_MODE_SELECT:
+            case MENU_MISSION_SELECT:
+            case MENU_DIFFICULTY:
+            case MENU_007_OPTIONS:
+            case MENU_BRIEFING:
+            case MENU_CHEAT:
+            case MENU_AP_STATUS:
+#ifdef GE_AP_DEBUG
+            case MENU_AP_DEBUG:
+#endif
+                frontChangeMenu(MENU_ARCHIPELAGO, FALSE);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+#endif
     if (
         ((menu_update > MENU_INVALID) || (maybe_prev_menu > MENU_INVALID))
         && (current_menu != MENU_SWITCH_SCREENS))
@@ -19128,6 +20022,11 @@ void menu_init(void)
 #ifndef TARGET_N64
             case MENU_PORT_OPTIONS:           update_menu1B_portoptions();          break;
             case MENU_PORT_SHEET:             update_menu1C_portsheet();            break;
+            case MENU_ARCHIPELAGO:            apMenuUpdate();                       break;
+            case MENU_AP_STATUS:              update_menu_ap_status();              break;
+#ifdef GE_AP_DEBUG
+            case MENU_AP_DEBUG:               update_menu_ap_debug();               break;
+#endif
 #endif
             case MENU_MISSION_SELECT:         update_menu07_missionsel();           break;
             case MENU_DIFFICULTY:             update_menu08_difficulty();           break;
@@ -19183,6 +20082,11 @@ void menu_init(void)
 #ifndef TARGET_N64
             case MENU_PORT_OPTIONS:           init_menu1B_portoptions();            break;
             case MENU_PORT_SHEET:             init_menu1C_portsheet();              break;
+            case MENU_ARCHIPELAGO:            apMenuInit();                         break;
+            case MENU_AP_STATUS:              init_menu_ap_status();                break;
+#ifdef GE_AP_DEBUG
+            case MENU_AP_DEBUG:               init_menu_ap_debug();                 break;
+#endif
 #endif
             case MENU_MISSION_SELECT:         init_menu07_missionselect();          break;
             case MENU_DIFFICULTY:             init_menu08_difficultyselect();       break;
@@ -19252,6 +20156,11 @@ void menu_init(void)
 #ifndef TARGET_N64
         case MENU_PORT_OPTIONS:           interface_menu1B_portoptions();           break;
         case MENU_PORT_SHEET:             interface_menu1C_portsheet();             break;
+        case MENU_ARCHIPELAGO:            apMenuInterface();                        break;
+        case MENU_AP_STATUS:              interface_menu_ap_status();               break;
+#ifdef GE_AP_DEBUG
+        case MENU_AP_DEBUG:               interface_menu_ap_debug();                break;
+#endif
 #endif
         case MENU_MISSION_SELECT:         interface_menu07_missionsel();            break;
         case MENU_DIFFICULTY:             interface_menu08_difficulty();            break;
@@ -19286,6 +20195,12 @@ void menu_init(void)
             else if (gamemode == GAMEMODE_MULTI)
             {
                 frontChangeMenu(MENU_MP_OPTIONS, 1);
+            }
+            else if (apSurvivalActive())
+            {
+                /* An arena is not a folder mission. The fail screen would
+                 * borrow Dam, the first briefing in the list. */
+                frontChangeMenu(MENU_MODE_SELECT, 1);
             }
             /**
              * The intro roster only shows main characters. The credits roster shows minor characters like guards.
@@ -19338,6 +20253,17 @@ Gfx * menu_jump_constructor_handler(Gfx *DL)
         case MENU_PORT_SHEET:
             DL = constructor_menu1C_portsheet(DL);
             break;
+        case MENU_ARCHIPELAGO:
+            DL = apMenuConstructor(DL);
+            break;
+        case MENU_AP_STATUS:
+            DL = constructor_menu_ap_status(DL);
+            break;
+#ifdef GE_AP_DEBUG
+        case MENU_AP_DEBUG:
+            DL = constructor_menu_ap_debug(DL);
+            break;
+#endif
 #endif
         case MENU_MISSION_SELECT:
             DL = constructor_menu07_missionsel(DL);

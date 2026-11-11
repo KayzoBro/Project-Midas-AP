@@ -1,4 +1,7 @@
 #include <ultra64.h>
+#ifndef TARGET_N64
+extern int apSurvivalActive(void);
+#endif
 #include <math.h>
 #include <bondtypes.h>
 #include <boss.h>
@@ -6472,12 +6475,13 @@ void bondviewProcessInput(s8 stick_x, s8 stick_y, u16 buttons, u16 oldbuttons)
             portRamromEscapeExit("real input press (watch_objectives bind)");
             objpressed = 0;
         }
-        if (objpressed && getPlayerCount() >= 2)
+        if (objpressed && (getPlayerCount() >= 2 || apSurvivalActive()))
         { /* MP has no solo watch, so give this bind (Xbox layout: Back) the
-           * nearest MP meaning: toggle this player's pause menu, as START does. */
+           * nearest MP meaning: toggle this player's pause menu, as START does.
+           * Survival is one player and uses that same menu. */
             portJoyInjectPressed((s8) get_cur_playernum(), START_BUTTON);
         }
-        if (objpressed && getPlayerCount() == 1)
+        if (objpressed && getPlayerCount() == 1 && !apSurvivalActive())
         {
             if (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x0
                 && g_CurrentPlayer->bonddead == FALSE
@@ -6524,10 +6528,11 @@ void bondviewProcessInput(s8 stick_x, s8 stick_y, u16 buttons, u16 oldbuttons)
                  * recording, so Escape skips the demo like any other key. */
                 portRamromEscapeExit("real input press (Escape key)");
             }
-            else if (getPlayerCount() >= 2)
+            else if (getPlayerCount() >= 2 || apSurvivalActive())
             {   /* With the MP menu up, send B to close it, because START there
                  * confirms and could end the match for everyone. Game over
-                 * keeps START so player 1 can still end the match. */
+                 * keeps START so player 1 can still end the match. Survival
+                 * uses this menu too. */
                 portJoyInjectPressed((s8) 0,
                     (g_CurrentPlayer->mpmenuon && !g_gameOverFlag) ? B_BUTTON : START_BUTTON);
             }
@@ -6591,7 +6596,11 @@ void bondviewProcessInput(s8 stick_x, s8 stick_y, u16 buttons, u16 oldbuttons)
             (g_CurrentPlayer->watch_animation_state == WATCH_ANIMATION_0x5
                 && g_CurrentPlayer->open_close_solo_watch_menu)
         )
-        && (getPlayerCount() == 1))
+        && (getPlayerCount() == 1)
+#ifndef TARGET_N64
+        && !apSurvivalActive()
+#endif
+       )
     {
         trigger_solo_watch_menu(0);
     }
@@ -8737,6 +8746,16 @@ void bondviewProcessInput(s8 stick_x, s8 stick_y, u16 buttons, u16 oldbuttons)
     {
         canCycleWeapons = 0;
     }
+#ifndef TARGET_N64
+    {
+        /* The Living Daylights trap holds the flag the way Flag Tag does. */
+        extern int apTrapFlagHeld(void);
+        if (apTrapFlagHeld())
+        {
+            canCycleWeapons = 0;
+        }
+    }
+#endif
 
     if (canCycleWeapons)
     {
@@ -12165,15 +12184,29 @@ void mp_respawn_handler(void)
                     intro_record = (struct SetupIntroEmpty*)((s32)intro_record + sizeof(struct SetupIntroSpawn));
                     break;
                 case 1: // INTROTYPE_ITEM
-                    if (check_ramrom_flags() == ((struct SetupIntroAmmo*)intro_record)->is_demo_playback) {
-                        if ( ((struct SetupIntroItem*)intro_record)->item_left >= 0) {
-                            bondinvAddDoublesInvItem(((struct SetupIntroItem*)intro_record)->item_right, ((struct SetupIntroItem*)intro_record)->item_left);
-                        } else {
-                            bondinvAddInvItem(((struct SetupIntroItem*)intro_record)->item_right);
+                {
+                    struct SetupIntroItem *item = (struct SetupIntroItem *) intro_record;
+                    s32 giveRight = 1;
+                    s32 giveLeft = item->item_left >= 0;
+#ifndef TARGET_N64
+                    {
+                        extern s32 apAllowIntroItem(s32 itemId);
+                        giveRight = apAllowIntroItem(item->item_right);
+                        giveLeft = (item->item_left >= 0) && apAllowIntroItem(item->item_left);
+                    }
+#endif
+                    if (check_ramrom_flags() == item->is_demo_playback) {
+                        if (giveRight && giveLeft) {
+                            bondinvAddDoublesInvItem(item->item_right, item->item_left);
+                        } else if (giveRight) {
+                            bondinvAddInvItem(item->item_right);
+                        } else if (giveLeft) {
+                            bondinvAddInvItem(item->item_left);
                         }
                     }
                     intro_record = (struct SetupIntroEmpty*)((s32)intro_record + sizeof(struct SetupIntroItem));
                     break;
+                }
                 case 2: // INTROTYPE_AMMO
                     if (check_ramrom_flags() == ((struct SetupIntroAmmo*)intro_record)->is_demo_playback) {
                         give_cur_player_ammo(((struct SetupIntroAmmo*)intro_record)->ammo_type, ((struct SetupIntroAmmo*)intro_record)->ammo_amount);
@@ -12212,6 +12245,17 @@ void mp_respawn_handler(void)
         if (item != ITEM_UNARMED)
         {
             currentPlayerEquipWeaponWrapper(GUNRIGHT, item);
+        }
+    }
+    { /* The wipe above dropped Archipelago weapons and their reserve.
+       * Put both back, then draw again so the magazine loads from it. */
+        extern void apApplyLoadout(void);
+
+        apApplyLoadout();
+        if (getPlayerCount() < 2)
+        {
+            currentPlayerEquipWeaponWrapper(GUNLEFT, starting_weapon[GUNLEFT]);
+            currentPlayerEquipWeaponWrapper(GUNRIGHT, starting_weapon[GUNRIGHT]);
         }
     }
 #endif
@@ -12889,6 +12933,12 @@ void bondviewKillCurrentPlayer(void)
         }
 
         g_CurrentPlayer->lifestarttime60 = getMissiontimer();
+#ifndef TARGET_N64
+        {
+            extern void apOnBondDeath(void);
+            apOnBondDeath();
+        }
+#endif
     }
 }
 
