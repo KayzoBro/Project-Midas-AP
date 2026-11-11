@@ -13,7 +13,7 @@ This branch adds an Archipelago 0.6 client. The version on the legal screen and 
 Claude was used in the making of this project. If you don't agree with this, please do not download either the executables or the source.
 
 ## AI Disclaimer (Archipelago Version)
-This project was coded by me. AI (Cursor) was used as a tool and not as a solution: to draft, look things up. I decided what to build, coded/reviewed the changes, and kept what is in the tree.
+This project was coded by me. AI (Cursor) was used as a tool and not as a solution: to draft, look things up, and write some looooooong descriptions to gain time. I decided what to build, coded/reviewed the changes, and kept what is in the tree.
 
 Testing was done by me (and other people). Played the game and checked the results. Cursor AI tools were used for a very small number of test runs (compile of PM mostly), and those runs do not stand in for that playtesting.
  
