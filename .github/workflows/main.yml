@@ -2,12 +2,20 @@ name: PC-Port-Build
 
 on:
   push:
+    branches:
+      - main
+      - master
+      - feat/archipelago
     paths-ignore: 
     - 'tools/**'
     - '*.md'
     - '.gitignore'
     - 'CppProperties.json'
   pull_request:
+    branches:
+      - main
+      - master
+      - feat/archipelago
   workflow_dispatch:
 
 # SDL2 mingw devel package version used for the Windows cross-build; must match

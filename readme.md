@@ -6,6 +6,8 @@ This is a video game about Jimothy's presumed-dead best friend Jarvis turns out 
 
 Project Midas is a work-in-progress PC port of GE, built from the N64 decompilation. It runs on Windows and Linux and reads its game data from your own copy of the US cart.
 
+This branch adds an Archipelago 0.6 client. The version on the legal screen and the login is v1.0.0 (`g_MidasVersion` in `port/src/sysstubs.c`). How to generate a seed and join it is in [Archipelago](#archipelago) below.
+
 ## AI Disclaimer
 
 Claude was used in the making of this project. If you don't agree with this, please do not download either the executables or the source.
@@ -34,6 +36,73 @@ Files next to the executable:
 | `Mods/` | Reserved for modded carts. This build loads the stock cart only. |
 
 An older `ge.ini` is renamed to `midas.ini` automatically on first run.
+
+## Archipelago
+
+The game can join an Archipelago room. Clearing a solo mission sends that check. A dossier in your inventory unlocks that mission. Weapons you receive are added to Bond's loadout. A few items are armour, ammunition, or traps.
+
+Archipelago calls this game `Project Midas - GE 007`. A room generated under another name will not accept the client. The world is not in the official Archipelago build yet, so you generate the seed on your machine and host it locally. The Windows game can also connect with TLS to a server that already has the world.
+
+The option list, the cheat table, and the enemy settings are in [archipelago/goldeneye/docs/setup_en.md](archipelago/goldeneye/docs/setup_en.md).
+
+### Install the apworld
+
+Use Archipelago 0.6 or newer. Put the world where the launcher looks for custom worlds, `<Archipelago>/custom_worlds/`.
+
+Either copy the packed world:
+
+`archipelago/goldeneye.apworld`
+
+or copy the source folder:
+
+`archipelago/goldeneye`
+
+to:
+
+`<Archipelago>/custom_worlds/goldeneye`
+
+The folder copy must contain `__init__.py`.
+
+### Generate and host a seed
+
+A minimal player yaml:
+
+```yaml
+name: Bond
+game: Project Midas - GE 007
+Project Midas - GE 007:
+  goal: cradle
+  goal_difficulty: agent
+  difficulty_checks: all
+  starting_missions: 1
+  include_bonus: true
+```
+
+`name` is the slot name you will type in the game. Generate the multiworld from the Archipelago launcher, then host it. A local host uses port 38281 and no TLS.
+
+### Connect the game
+
+After the legal screen, the folder opens on the Archipelago login. The title line shows the version (`ARCHIPELAGO  v1.0.0`). Fill host, port and slot, then CONNECT. PLAY stays locked until the seed accepts you.
+
+The same values can live in `midas.ini`, next to the executable:
+
+```ini
+[archipelago]
+enabled=1
+host=127.0.0.1
+port=38281
+slot=Bond
+password=
+tls=0
+```
+
+`slot` is the player name from the yaml, not the game title. `tls=1` and `host=archipelago.gg` are for a TLS server. A local host uses `tls=0`.
+
+The tilde console accepts the same settings: `ap host 127.0.0.1`, `ap port 38281`, `ap slot Bond`, `ap tls 0`, `ap connect`. `ap help` lists the commands.
+
+Each seed keeps its own four folders, under `Data/Saves/ap`. A seed you have not played starts empty. With Archipelago off, the game still uses `Data/Saves/eeprom.bin`.
+
+Survival is not on the folder in this version. `ap survival` still opens it. Nothing you do there is a check.
 
 ## Building
 

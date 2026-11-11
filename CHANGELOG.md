@@ -9,6 +9,7 @@
 ### Changed
 
 - The Survival row is hidden on the folder. The mode is still in the build, and `ap survival` still opens it.
+- The legal screen and the Archipelago login show `g_MidasVersion`, currently v1.0.0.
 - Timed traps pause when a mission ends and resume on the next one. The menus do not spend the remaining time. A new seed still clears them.
 - The Archipelago connection screen gives the title, the seed line and each field its own row. The seed used to be drawn through the host name. A long seed keeps its last eight digits.
 

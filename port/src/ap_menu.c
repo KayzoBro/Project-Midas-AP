@@ -391,7 +391,13 @@ Gfx *apMenuConstructor(Gfx *dl)
     }
     dl = microcode_constructor(dl);
 
-    dl = printLine(dl, 0x3C, AP_TITLE_Y, "ARCHIPELAGO");
+    {
+        extern const char g_MidasVersion[];
+        char title[40];
+
+        snprintf(title, sizeof(title), "ARCHIPELAGO  %s", g_MidasVersion);
+        dl = printLine(dl, 0x3C, AP_TITLE_Y, title);
+    }
     apConnectionLine(status, (int) sizeof(status));
     fitStatus(statusFit, (int) sizeof(statusFit), status);
     dl = printLine(dl, 0x3C, AP_TITLE_Y + AP_ROW_PITCH, statusFit);

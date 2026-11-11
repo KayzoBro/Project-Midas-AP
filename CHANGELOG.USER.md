@@ -4,11 +4,12 @@
 
 ### Removed
 
-- The Living Daylights ne sort plus dans une seed. Le drapeau n’est pas visible quand on joue seul, et le piège ne faisait que retirer l’arme. La page de test peut encore le déclencher.
+- The Living Daylights no longer shows up in a seed. The flag is not visible when you play alone, and the trap only took the gun away. The test page can still fire it.
 
 ### Changed
 
 - Survival is not on the folder for this version.
+- The opening screen and the Archipelago login show the version, v1.0.0.
 - A timed trap no longer ends when the mission does. It waits through the menus and continues on the next mission.
 - The connection screen no longer stacks the seed on top of the host line. Each row has its own space.
 
