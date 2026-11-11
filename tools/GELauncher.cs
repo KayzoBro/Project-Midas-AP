@@ -601,7 +601,7 @@ class OptionsForm : Form
     TrackBar deadzonePct;
     Label deadzoneVal;
     CheckBox widescreen, filter2d, highLod, hwMipmaps, n64Aa, n64Speed, roomCache, triHoist, showFps, mouse, dinputPads, showInput, vsync, alwaysWalk, smartMouseLock, detonateUseReload;
-    CheckBox adzy, unlockAll, pausePillars, alwaysCrosshair, aimLock, noHeadRoll, crosshairCustom;
+    CheckBox adzy, /*unlockAll,*/ pausePillars, alwaysCrosshair, aimLock, noHeadRoll, crosshairCustom;
     Button crosshairColor;
     ComboBox msaa, filtering, anisotropy;
     readonly string[] keyBinds = new string[BindDefs.Length];
@@ -1112,7 +1112,7 @@ class OptionsForm : Form
         vsync = AddCheck(tabDisplay, "VSync (off = tearing possible; off + Max FPS 0 = fully uncapped)", ref y);
         n64Speed = AddCheck(tabDisplay, "N64 speed (tickhz=hw: the console's frame rate, slowdown and stepped motion)", ref y);
         adzy = AddCheck(tabDisplay, "Adzy mode (Siberian Special Forces + snow cuff)", ref y);
-        unlockAll = AddCheck(tabDisplay, "Unlock all (every mission, difficulty and cheat available)", ref y);
+        //unlockAll = AddCheck(tabDisplay, "Unlock all (every mission, difficulty and cheat available)", ref y);
         pausePillars = AddCheck(tabDisplay, "Pause pillarbox (black bars ease in to 4:3 while the watch is up)", ref y);
         alwaysCrosshair = AddCheck(tabDisplay, "Always-on crosshair (Perfect Dark style target while not aiming)", ref y);
         tip.SetToolTip(alwaysCrosshair,
@@ -2233,7 +2233,7 @@ class OptionsForm : Form
         vsync.Checked = true;
         n64Speed.Checked = false;
         adzy.Checked = false;
-        unlockAll.Checked = false;
+        //unlockAll.Checked = false;
         pausePillars.Checked = true;
         alwaysCrosshair.Checked = false;
         aimLock.Checked = false;
@@ -2409,7 +2409,7 @@ class OptionsForm : Form
             if (v.Trim().ToLowerInvariant() == "hw" || v.Trim() == "-1") n64Speed.Checked = true;
         }
         if (opts.TryGetValue("adzy", out v) && int.TryParse(v, out n)) adzy.Checked = n != 0;
-        if (opts.TryGetValue("unlock_all", out v) && int.TryParse(v, out n)) unlockAll.Checked = n != 0;
+        //if (opts.TryGetValue("unlock_all", out v) && int.TryParse(v, out n)) unlockAll.Checked = n != 0;
         if (opts.TryGetValue("pause_pillars", out v) && int.TryParse(v, out n)) pausePillars.Checked = n != 0;
         if (opts.TryGetValue("always_crosshair", out v) && int.TryParse(v, out n)) alwaysCrosshair.Checked = n != 0;
         if (opts.TryGetValue("aim_lock", out v) && int.TryParse(v, out n)) aimLock.Checked = n != 0;
@@ -2528,7 +2528,8 @@ class OptionsForm : Form
             "window_width", "window_height", "window_x", "window_y", "window_display",
             "fullscreen", "widescreen", "msaa", "filtering", "anisotropy", "filter_2d",
             "high_lod", "low_res", "hw_mipmaps", "mipmaps", "n64_aa", "room_cache", "tri_hoist", "show_fps", "fov", "crosshair_color", "music_volume", "sfx_volume", "maxfps", "vsync", "tickhz", "adzy",
-            "unlock_all", "pause_pillars", "always_crosshair", "aim_lock", "no_head_roll", "shadow_alpha",
+            //"unlock_all", 
+            "pause_pillars", "always_crosshair", "aim_lock", "no_head_roll", "shadow_alpha",
             "mouse", "smart_mouse_lock", "always_walk", "detonate_use_reload", "mouse_sens_x", "mouse_sens_y", "mouse_sens_aim",
             "right_stick_c", "twin_stick", "dinput", "deadzone", "trigger_threshold",
             "stick_scale", "pads", "show_input",
@@ -2749,7 +2750,8 @@ class OptionsForm : Form
         sb.AppendLine("; adzy=1 replaces Bond at every solo mission start with the");
         sb.AppendLine(";   Siberian Special Forces model and the snow cuff. Cosmetic only.");
         sb.AppendLine("adzy=" + (adzy.Checked ? "1" : "0"));
-        sb.AppendLine("unlock_all=" + (unlockAll.Checked ? "1" : "0"));
+        // Why would you ever need that in AP ?!
+        //sb.AppendLine("unlock_all=" + (unlockAll.Checked ? "1" : "0"));
         sb.AppendLine("pause_pillars=" + (pausePillars.Checked ? "1" : "0"));
         sb.AppendLine("; always_crosshair=1 draws a Perfect Dark style target (small plus, GE sight red)");
         sb.AppendLine(";   at the gun's aim point while not aiming; aim mode keeps the GE sight.");
