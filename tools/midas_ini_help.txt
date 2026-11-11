@@ -240,6 +240,40 @@ mipmaps is set by Classic Mode; leave it as it is.
 
 
 ==============================================================================
+[archipelago]  optional multiworld
+==============================================================================
+
+The title leads to a login screen. Solo play stays there until a seed
+accepts the slot, so the cart's Dam-first save cannot be started.
+Clearing a solo mission sends that check. Cheats block the check.
+The world package lives in archipelago/goldeneye; a local Archipelago 0.6
+server hosts the seed. The tilde console accepts the same keys: ap help.
+
+  Key       | Default          | What it does
+  ----------+------------------+----------------------------------------------
+  enabled   | 0                | 1 = connect, and lock missions until the
+            |                  | server says they are open
+  host      | archipelago.gg   | Server. 127.0.0.1 for a local host.
+            |                  | wss:// or ws:// in the value sets tls too
+  port      | 38281            | Archipelago port
+  slot      | (empty)          | Your player name from the yaml
+  password  | (empty)          | Room password, if the server asks for one
+  tls       | 1                | 1 = wss (Windows). A local server wants 0.
+            |                  | Builds other than Windows only speak ws://
+  popup     | 1                | 1 = toast items you receive, and items you
+            |                  | send to another player
+  popup_pos | bottom_left      | Corner: top_right, top_left, bottom_right,
+            |                  | bottom_left. Also under Options, Gameplay,
+            |                  | Archipelago, with the Popup and TLS rows.
+  armor_key | F5               | Uses one stored Body Armor. SDL key name.
+            |                  | None or Del on the options row clears it.
+  ammo_key  | F6               | Uses one stored Ammo Cache (one magazine
+            |                  | of every ammunition type). Same naming.
+
+Progress for the slot is kept in Data/Saves/archipelago.txt.
+
+
+==============================================================================
 Data/Devices/kbm.gedevice [binds]  keyboard and mouse bindings
 ==============================================================================
 
