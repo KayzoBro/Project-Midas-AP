@@ -436,6 +436,16 @@ void bondinvRemoveItemByID(ITEM_IDS weaponnum)
                     bondinvRemoveItem(item);
                 }
             }
+            else if (item->type == INV_ITEM_DUAL)
+            {
+                /* A dual entry is not INV_ITEM_WEAPON. Leaving it in the cycle
+                 * puts the gun back on weapon-next. */
+                if (item->type_inv_item.type_dual.weapon_right == weaponnum
+                    || item->type_inv_item.type_dual.weapon_left == weaponnum)
+                {
+                    bondinvRemoveItem(item);
+                }
+            }
 
             if ((item == g_CurrentPlayer->ptr_inventory_first_in_cycle) || (!g_CurrentPlayer->ptr_inventory_first_in_cycle))
             {
@@ -478,6 +488,15 @@ int bondinvAddWeaponByProp(PropRecord *prop)
             WeaponObjRecord *otherweapon;
 
             s8 weaponnum = weapon->weaponnum;
+#ifndef TARGET_N64
+            {
+                extern s32 apBlockLooseWeapon(s32 weaponnum);
+                if (apBlockLooseWeapon(weaponnum))
+                {
+                    return FALSE;
+                }
+            }
+#endif
             added = bondinvAddInvItem(weaponnum);
 
             otherweapon = weapon->dualweapon;

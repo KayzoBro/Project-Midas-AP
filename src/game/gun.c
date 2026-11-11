@@ -2312,6 +2312,80 @@ void generate_player_thrown_object(s32 hand)
 }
 
 
+/* Same toss as a thrown mine. A gun has no fuse, so the timer stays unset. */
+s32 gunThrowItem(GUNHAND hand, s32 modelnum, s32 itemid)
+{
+    Mtxf spin;
+    struct coord3d throw_speed_vec;
+    f32 base_velocity;
+    struct coord3d from;
+    Mtxf orient;
+    struct WeaponObjRecord *wor;
+    coord3d aimpos;
+    struct coord3d aimdir;
+    struct PropRecord *player_prop;
+    struct coord3d *bondprevpos;
+    Mtxf handmtx;
+
+    base_velocity = 16.666666f;
+    player_prop = getCurrentPlayerProp();
+    bondprevpos = getCurrentPlayerPrevPos();
+    if (player_prop == NULL || g_CurrentPlayer == NULL)
+    {
+        return 0;
+    }
+
+    sub_GAME_7F057C14(&throw_speed_vec, &spin);
+    bullet_path_from_screen_center(&aimpos, &aimdir, hand);
+    mtx4RotateVecInPlace(currentPlayerGetViewToWorldMtxf(), (f32 *) &aimdir);
+
+    throw_speed_vec.f[0] = aimdir.f[0] * base_velocity;
+    throw_speed_vec.f[1] = (aimdir.f[1] * base_velocity) + 5.0f;
+    throw_speed_vec.f[2] = aimdir.f[2] * base_velocity;
+
+    if (g_ClockTimer > 0 && bondprevpos != NULL)
+    {
+        throw_speed_vec.f[0] += (player_prop->pos.f[0] - bondprevpos->f[0]) / g_GlobalTimerDelta;
+        throw_speed_vec.f[1] += (player_prop->pos.f[1] - bondprevpos->f[1]) / g_GlobalTimerDelta;
+        throw_speed_vec.f[2] += (player_prop->pos.f[2] - bondprevpos->f[2]) / g_GlobalTimerDelta;
+    }
+
+    from.f[0] = g_CurrentPlayer->hands[hand].throw_item_pos_related.m[3][0];
+    from.f[1] = g_CurrentPlayer->hands[hand].throw_item_pos_related.m[3][1];
+    from.f[2] = g_CurrentPlayer->hands[hand].throw_item_pos_related.m[3][2];
+
+    matrix_4x4_set_identity(&orient);
+    matrix_4x4_copy(&g_CurrentPlayer->hands[hand].throw_item_pos_related, &handmtx);
+    handmtx.m[3][0] = 0.0f;
+    handmtx.m[3][1] = 0.0f;
+    handmtx.m[3][2] = 0.0f;
+    matrix_4x4_multiply_in_place(&handmtx, &orient);
+
+    wor = (struct WeaponObjRecord *) create_new_item_instance_of_model((PROP) modelnum, itemid);
+    if (wor == NULL)
+    {
+        return 0;
+    }
+
+    wor->timer = -1;
+    wor->runtime_bitflags &= ~(RUNTIMEBITFLAG_OWNER);
+    wor->runtime_bitflags |= get_cur_playernum() << RUNTIMEBITSHIFT_OWNER;
+    gunInitProjectileFromPlayer((ObjectRecord *) wor, &from, &orient, &throw_speed_vec, &spin);
+
+    if ((wor->runtime_bitflags & RUNTIMEBITFLAG_HASPROJECTILE) == 0)
+    {
+        objFreePermanently((struct ObjectRecord *) wor, TRUE);
+        return 0;
+    }
+
+    wor->projectile->flags |= 2;
+    wor->projectile->unk8C = 0.1f;
+    wor->projectile->refreshrate = THROWN_ITEM_REFRESH_RATE;
+    sndPlaySfx((struct ALBankAlt_s *) g_musicSfxBufferPtr, GRENADE_THROW_SFX, NULL);
+    return 1;
+}
+
+
 /**
  * Address: 7F05F73C
  *

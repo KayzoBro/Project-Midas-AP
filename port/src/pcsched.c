@@ -1042,6 +1042,8 @@ pace_done:
      * waits, and nested intervals would be counted twice. */
     if (--s_PumpDepth == 0)
     {
+        extern void apTick(void);
+        apTick();
         s_PumpExitUs = portProfNow();
         s_PumpExitSleepUs = g_PortPumpSleepUs;
         g_PortPumpUs += s_PumpExitUs - s_PumpEntryUs;

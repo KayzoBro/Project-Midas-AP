@@ -382,6 +382,13 @@ void display_objective_status_text_on_status_change(void)
                 if (status == OBJECTIVESTATUS_COMPLETE)
                 {
                     strcat(&buffer, langGet(getStringID(LMISC, MISC_STR_2D_COMPLETED_LF)));
+#ifndef TARGET_N64
+                    if (!get_debug_all_obj_complete_flag())
+                    {
+                        extern void apOnObjectiveComplete(s32 index);
+                        apOnObjectiveComplete(i);
+                    }
+#endif
                 }
                 else if (status == OBJECTIVESTATUS_INCOMPLETE)
                 {

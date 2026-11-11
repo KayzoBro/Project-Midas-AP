@@ -2639,6 +2639,18 @@ void sub_GAME_7F0649D8(enum GUNHAND hand)
     s32 ammo_total;
 
     hand_ptr = &g_CurrentPlayer->hands[hand];
+#ifndef TARGET_N64
+    /* A jammed clip has already emptied the magazine. Refilling here would
+     * spend the reserve the trap is not allowed to touch. */
+    {
+        extern int apWeaponJammed(void);
+        if (apWeaponJammed())
+        {
+            hand_ptr->weapon_ammo_in_magazine = 0;
+            return;
+        }
+    }
+#endif
     item_id = getCurrentPlayerWeaponId(hand);
     ammo_in_magazine = hand_ptr->weapon_ammo_in_magazine;
     ammo_in_hands = get_ammo_in_hands_weapon(hand);
@@ -3086,9 +3098,16 @@ void gunTickHandState(enum GUNHAND hand, s32 triggerOn)
 
                 if (get_ammo_in_hands_weapon(hand) > 0)
                 {
-                    handptr->weapon_action_state = GUN_ANIM_STATE_RELOAD_START;
-                    handptr->field_890 = 0;
-                    handptr->field_88C = 0;
+#ifndef TARGET_N64
+                    extern int apWeaponJammed(void);
+                    /* Reserve is still there. The jam just will not let it into the gun. */
+                    if (!apWeaponJammed())
+#endif
+                    {
+                        handptr->weapon_action_state = GUN_ANIM_STATE_RELOAD_START;
+                        handptr->field_890 = 0;
+                        handptr->field_88C = 0;
+                    }
                 }
                 else
                 {

@@ -1,6 +1,9 @@
 #include <ultra64.h>
 #include "bondconstants.h"
 #include "random.h"
+#ifndef TARGET_N64
+#include "ap_enemy.h"
+#endif
 
 struct music_setup
 {
@@ -94,6 +97,16 @@ s16 random_tracks[] = {
 s32 getmusictrack_or_randomtrack(s32 arg0)
 {
     s32 index;
+#ifndef TARGET_N64
+    {
+        s32 apTrack = apEnemyMusic(arg0);
+
+        if (apTrack >= 0)
+        {
+            return apTrack;
+        }
+    }
+#endif
     
     for (index = 0; music_setup_entries[index].stage_id != 0; index++)
     {

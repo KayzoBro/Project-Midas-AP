@@ -10665,6 +10665,17 @@ void display_text_when_ammo_collected(s32 ammotype, s32 quantity)
 #endif
 }
 
+static s32 looseWeaponBlocked(s32 weapon)
+{
+#ifndef TARGET_N64
+    extern s32 apBlockLooseWeapon(s32 weaponnum);
+    return apBlockLooseWeapon(weapon);
+#else
+    (void) weapon;
+    return 0;
+#endif
+}
+
 void add_ammo_to_inventory(AMMOTYPE ammotype,int amount,int doplaysound,int dodisplaytext)
 {
     int curammo;
@@ -10693,24 +10704,27 @@ void add_ammo_to_inventory(AMMOTYPE ammotype,int amount,int doplaysound,int dodi
 
             if (ammotype == AMMO_GRENADE)
             {
-                bondinvAddInvItem(ITEM_GRENADE);
+                if (!looseWeaponBlocked(ITEM_GRENADE)) bondinvAddInvItem(ITEM_GRENADE);
             }
             else if (ammotype == AMMO_REMOTEMINE)
             {
-                bondinvAddInvItem(ITEM_REMOTEMINE);
-                bondinvAddInvItem(ITEM_TRIGGER);
+                if (!looseWeaponBlocked(ITEM_REMOTEMINE))
+                {
+                    bondinvAddInvItem(ITEM_REMOTEMINE);
+                    bondinvAddInvItem(ITEM_TRIGGER);
+                }
             }
             else if (ammotype == AMMO_PROXMINE)
             {
-                bondinvAddInvItem(ITEM_PROXIMITYMINE);
+                if (!looseWeaponBlocked(ITEM_PROXIMITYMINE)) bondinvAddInvItem(ITEM_PROXIMITYMINE);
             }
             else if (ammotype == AMMO_TIMEDMINE)
             {
-                bondinvAddInvItem(ITEM_TIMEDMINE);
+                if (!looseWeaponBlocked(ITEM_TIMEDMINE)) bondinvAddInvItem(ITEM_TIMEDMINE);
             }
             else if (ammotype == AMMO_KNIFE)
             {
-                bondinvAddInvItem(ITEM_THROWKNIFE);
+                if (!looseWeaponBlocked(ITEM_THROWKNIFE)) bondinvAddInvItem(ITEM_THROWKNIFE);
             }
             else if (ammotype == AMMO_BOMBCASE)
             {
@@ -11094,6 +11108,10 @@ TICKOP propPickupByPlayer(PropRecord *prop, bool showstring)
 
             if (wep->weaponnum == ITEM_REMOTEMINE)
             {
+#ifndef TARGET_N64
+                extern s32 apBlockLooseWeapon(s32 weaponnum);
+                if (!apBlockLooseWeapon(ITEM_REMOTEMINE))
+#endif
                 bondinvAddInvItem(ITEM_TRIGGER);
             }
             else if (wep->weaponnum == ITEM_TOKEN)
@@ -11284,11 +11302,29 @@ TICKOP propPickupByPlayer(PropRecord *prop, bool showstring)
         }
     }
 
-    if ((op == TICKOP_FREE) && ((obj->runtime_bitflags & RUNTIMEBITFLAG_TAGGED) == 0))
+    /* A freed untagged prop fails a collect objective (the object is gone
+     * and it is not in the inventory). The Golden Gun stays, so the check
+     * can complete even when the shared inventory refuses the weapon itself. */
     {
-        objFree(obj, 0, (obj->state & RUNTIMEBITFLAG_REMOVE));
+        s32 keepForObjective = (obj->runtime_bitflags & RUNTIMEBITFLAG_TAGGED) != 0;
 
-        return INV_ITEM_WEAPON;
+#ifndef TARGET_N64
+        if (!keepForObjective && obj->type == PROPDEF_COLLECTABLE)
+        {
+            WeaponObjRecord *held = (WeaponObjRecord *) obj;
+
+            if (held->weaponnum == ITEM_GOLDENGUN)
+            {
+                keepForObjective = 1;
+            }
+        }
+#endif
+        if ((op == TICKOP_FREE) && !keepForObjective)
+        {
+            objFree(obj, 0, (obj->state & RUNTIMEBITFLAG_REMOVE));
+
+            return INV_ITEM_WEAPON;
+        }
     }
 
     if (op != TICKOP_NONE)
@@ -11419,6 +11455,15 @@ TICKOP objTickPlayer(struct PropRecord* prop)
                     } 
                     else 
                     {
+#ifndef TARGET_N64
+                        /* Archipelago, global weapons: the shrine Golden Gun is
+                         * "Recover the golden gun". The cart will not pick up a
+                         * weapon whose reserve is already at the cap, and that
+                         * reserve starts full. A tagged collectable, and this
+                         * gun in particular, still has to be taken. */
+                        if (weaponObj->weaponnum != ITEM_GOLDENGUN
+                            && (obj->runtime_bitflags & RUNTIMEBITFLAG_TAGGED) == 0)
+#endif
                         return TICKOP_NONE;
                     }
                 }

@@ -3592,6 +3592,34 @@ static void videoDeleteScan(const Uint8 *keys)
 }
 
 /** Arm the capture. The key held when it is armed does not count. */
+int portVideoScancodeFromName(const char *name)
+{
+    SDL_Scancode code;
+
+    if (name == NULL || name[0] == '\0')
+    {
+        return 0;
+    }
+    code = SDL_GetScancodeFromName(name);
+    if (code == SDL_SCANCODE_UNKNOWN || code >= SDL_NUM_SCANCODES)
+    {
+        return 0;
+    }
+    return (int) code;
+}
+
+const char *portVideoScancodeName(int scancode)
+{
+    const char *name;
+
+    if (scancode <= 0 || scancode >= SDL_NUM_SCANCODES)
+    {
+        return "";
+    }
+    name = SDL_GetScancodeName((SDL_Scancode) scancode);
+    return (name != NULL) ? name : "";
+}
+
 void portVideoBindCaptureBegin(void)
 {
     const Uint8 *keys = SDL_GetKeyboardState(NULL);
@@ -4085,6 +4113,7 @@ void videoGetPad(OSContPad *pad)
     {
         extern void portInputMouseUpdate(void);
         extern u32 portInputMouseButtons(void);
+        extern int apSupplyCaptureActive(void);
         const Uint8 *keys = SDL_GetKeyboardState(NULL);
         u32 mbuttons;
         int stickx = 0;
@@ -4129,9 +4158,10 @@ void videoGetPad(OSContPad *pad)
             sFocusWas = focusNow;
         }
         kbmOnly = !portConIsOpen() && !s_BindCapArmed && !portBindCooldownActive()
+                  && !apSupplyCaptureActive()
                   && portInputP1KbmMuted() && portStageRunning() && portP1ControlsLive();
         if (portConIsOpen() || (portInputP1KbmMuted() && portStageRunning() && portP1ControlsLive())
-            || s_BindCapArmed || portBindCooldownActive())
+            || s_BindCapArmed || portBindCooldownActive() || apSupplyCaptureActive())
         {
             /* Armed, or just finished: the keyboard belongs to the capture.
              * videoBindCaptureScan has already seen the real keys, so the bind
@@ -4213,6 +4243,42 @@ void videoGetPad(OSContPad *pad)
             }
             sFiltKeys[SDL_SCANCODE_F1] = 0;
             keys = sFiltKeys;
+        }
+        {   /* Supply shortcuts are not also game binds. The key that just
+             * finished a rebind stays blank until it is released. */
+            extern int apSupplyScancode(int which);
+            extern int apSupplyHudOn(void);
+            extern int apSupplySwallow(void);
+            extern void apSupplyClearSwallow(void);
+            const int hud = apSupplyHudOn();
+            const int sw = apSupplySwallow();
+            const int armor = hud ? apSupplyScancode(0) : 0;
+            const int ammo = hud ? apSupplyScancode(1) : 0;
+
+            if (sw > 0 && sw < SDL_NUM_SCANCODES && !keys[sw])
+            {
+                apSupplyClearSwallow();
+            }
+            if (armor > 0 || ammo > 0 || (sw > 0 && sw < SDL_NUM_SCANCODES && keys[sw]))
+            {
+                if (keys != sFiltKeys)
+                {
+                    SDL_memcpy(sFiltKeys, keys, SDL_NUM_SCANCODES);
+                }
+                if (armor > 0 && armor < SDL_NUM_SCANCODES)
+                {
+                    sFiltKeys[armor] = 0;
+                }
+                if (ammo > 0 && ammo < SDL_NUM_SCANCODES)
+                {
+                    sFiltKeys[ammo] = 0;
+                }
+                if (sw > 0 && sw < SDL_NUM_SCANCODES)
+                {
+                    sFiltKeys[sw] = 0;
+                }
+                keys = sFiltKeys;
+            }
         }
         { /* `moved` is per poll and several polls can run between one tick and the next mouse
            * report, so latch it until the watch layer reads it (else the
