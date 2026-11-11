@@ -43,7 +43,7 @@ The game can join an Archipelago room. Clearing a solo mission sends that check.
 
 Archipelago calls this game `Project Midas - GE 007`. A room generated under another name will not accept the client. The world is not in the official Archipelago build yet, so you generate the seed on your machine and host it locally. The Windows game can also connect with TLS to a server that already has the world.
 
-The option list, the cheat table, and the enemy settings are in [archipelago/goldeneye/docs/setup_en.md](archipelago/goldeneye/docs/setup_en.md).
+The options are in [archipelago/goldeneye/docs/setup_en.md](archipelago/goldeneye/docs/setup_en.md).
 
 ### Install the apworld
 
