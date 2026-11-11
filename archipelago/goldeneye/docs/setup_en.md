@@ -215,11 +215,11 @@ not played starts empty, so a previous seed's times and cheat unlocks do not
 come with it. The seed you were already playing keeps the folders from
 `eeprom.bin`. With Archipelago off, the game still uses that file.
 
-The folder has a Survival row. It opens a short list: Facility, Bunker,
-Archives, Caverns, Egyptian, Statue and Cradle. The map you pick is played
-alone, and guards arrive in waves. They use the solo routes, so they can
-cross the map. Nothing you do there is a check. With no firearm, the run
-lends a PP7. The console command is `ap survival`.
+Survival is not on the folder in this version. `ap survival` still opens
+the short list: Facility, Bunker, Archives, Caverns, Egyptian, Statue and
+Cradle. The map you pick is played alone, and guards arrive in waves. They
+use the solo routes, so they can cross the map. Nothing you do there is a
+check. With no firearm, the run lends a PP7.
 
 Until the game is connected, campaign missions stay locked. A mission opens
 once its dossier arrives. On Select Mission, each photo shows A, SA and 00.

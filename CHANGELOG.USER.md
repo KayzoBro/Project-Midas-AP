@@ -8,6 +8,7 @@
 
 ### Changed
 
+- Survival is not on the folder for this version.
 - A timed trap no longer ends when the mission does. It waits through the menus and continues on the next mission.
 - The connection screen no longer stacks the seed on top of the host line. Each row has its own space.
 

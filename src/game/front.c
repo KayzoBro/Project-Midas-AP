@@ -3850,9 +3850,9 @@ Gfx *frontSetupMenuBackground(Gfx *DL)
 
 
 #ifndef TARGET_N64
-/* Folder rows: solo, survival, then Archipelago. Unlocking a cheat does not
- * add CHEAT OPTIONS. GoldenEye's multiplayer menu is not part of this project.
- * AP Debug is the last row, and only when the build was configured with it. */
+/* Folder rows: solo, then Archipelago. Survival (kind 5) stays out of the
+ * list until that mode is ready to ship. Unlocking a cheat does not add
+ * CHEAT OPTIONS. AP Debug is the last row, and only when configured. */
 static s32 modeHasCheats(void)
 {
     return 0;
@@ -3860,7 +3860,7 @@ static s32 modeHasCheats(void)
 
 static s32 modeRowCount(void)
 {
-    s32 n = modeHasCheats() ? 4 : 3;
+    s32 n = modeHasCheats() ? 3 : 2;
 #ifdef GE_AP_DEBUG
     n++;
 #endif
@@ -3885,18 +3885,18 @@ static s32 modeRowKind(s32 i, s32 count)
     }
     count--;
 #endif
-    if (count >= 4)
+    if (count >= 3)
     {
-        static const s32 withCheats[] = { 0, 5, 2, 3 };
-        if (i < 0 || i > 3)
+        static const s32 withCheats[] = { 0, 2, 3 };
+        if (i < 0 || i > 2)
         {
             return 0;
         }
         return withCheats[i];
     }
     {
-        static const s32 rows[] = { 0, 5, 3 };
-        if (i < 0 || i > 2)
+        static const s32 rows[] = { 0, 3 };
+        if (i < 0 || i > 1)
         {
             return 0;
         }
