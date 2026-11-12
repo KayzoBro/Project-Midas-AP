@@ -144,6 +144,11 @@ class ProjectMidasWorld(World):
         kind = item_kind(name)
         if name == "Golden Gun" and bool(self.options.global_weapons) and self.mission_count > 19:
             kind = "progression"
+        # Caverns on Secret Agent and 00 Agent require this mine when mission
+        # tools are items. A useful weapon is invisible to state.has, so those
+        # checks stay closed after the fill.
+        if name == "Timed Mine" and bool(self.options.global_weapons) and not bool(self.options.mission_tools):
+            kind = "progression"
         return GEItem(name, ITEM_CLASS[kind], self.item_name_to_id[name], self.player)
 
     def create_regions(self):

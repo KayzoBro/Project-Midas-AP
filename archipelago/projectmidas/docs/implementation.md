@@ -99,7 +99,7 @@ Active seulement si l’inventaire d’armes est partagé et que Mission Tools e
 | Caverns | Timed Mine sur les trois destructions de pompes, et sur les clears Secret et 00 |
 | Aztec | Explosive Floppy sur toute la mission, si le bonus est inclus |
 
-Timed Mine est l’arme déjà dans le pool, pas un outil `6404xx`.
+Timed Mine est l’arme déjà dans le pool, pas un outil `6404xx`. Quand Mission Tools est off, elle passe en progression : sinon Archipelago ne la voit pas, et Caverns en Secret Agent et 00 Agent reste inaccessible.
 
 Avec l’inventaire partagé, Egyptian et « Defeat Baron Samedi » exigent en plus le Golden Gun. Le ramasser dans le temple ne le met pas dans cet inventaire, et Baron Samedi ne meurt qu’avec. Une seed à un seul check par mission, sans objectifs ni cheats, n’a pas de place pour le pistolet en plus du dossier : il est alors donné au départ.
 
