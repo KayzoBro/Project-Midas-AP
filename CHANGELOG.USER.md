@@ -8,6 +8,7 @@
 
 ### Changed
 
+- The Archipelago world is installed as `projectmidas`, next to any GoldenEye world already in custom worlds. The yaml still says `Project Midas - GE 007`. Delete the old `goldeneye` copy of this world if you had one.
 - Survival is not on the folder for this version.
 - The opening screen and the Archipelago login show the version, v1.0.0.
 - A timed trap no longer ends when the mission does. It waits through the menus and continues on the next mission.

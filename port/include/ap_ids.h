@@ -2,7 +2,7 @@
 #define AP_IDS_H
 
 /*
- * GoldenEye 007 Archipelago ids. Shared with archipelago/goldeneye/data.py.
+ * Project Midas Archipelago ids. Shared with archipelago/projectmidas/data.py.
  * Change both, then run: python archipelago/check_ids.py
  *
  * Items  640001.. dossiers, 640101.. weapons, 6402xx filler, 6403xx traps.

@@ -1,5 +1,5 @@
 """
-GoldenEye 007 world for Archipelago 0.6.
+Project Midas world for Archipelago 0.6.
 
 Mission clears are locations. A dossier unlocks that mission in the folder.
 Difficulty dossiers can lock each difficulty on its own. Tools gate a mission
@@ -87,7 +87,7 @@ class GEWebWorld(WebWorld):
     }
 
 
-class GoldenEyeWorld(World):
+class ProjectMidasWorld(World):
     game = "Project Midas - GE 007"
     web = GEWebWorld()
     options_dataclass = GEOptions

@@ -8,6 +8,7 @@
 
 ### Changed
 
+- The Archipelago world folder is `archipelago/projectmidas`. Copy it to `custom_worlds/projectmidas` (or pack `projectmidas.apworld`). The yaml game name stays `Project Midas - GE 007`. Remove an older copy from `custom_worlds/goldeneye` so it does not sit on top of another GoldenEye world.
 - The Survival row is hidden on the folder. The mode is still in the build, and `ap survival` still opens it.
 - The legal screen and the Archipelago login show `g_MidasVersion`, currently v1.0.0.
 - Timed traps pause when a mission ends and resume on the next one. The menus do not spend the remaining time. A new seed still clears them.
