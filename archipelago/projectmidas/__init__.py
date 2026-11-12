@@ -335,3 +335,20 @@ class ProjectMidasWorld(World):
 
     def get_filler_item_name(self) -> str:
         return self.random.choice(FILLER_SUPPLIES)
+
+    def collect(self, state, item) -> bool:
+        # state.has only sees progression items. The starting gun is useful, and
+        # with a shared weapon inventory every check asks for a firearm. Golden
+        # Gun is the only firearm marked progression, so the filler treats it as
+        # the gun you already own, fills every check with that assumption, then
+        # has nowhere left to put the gun itself.
+        if item.advancement or (bool(self.options.global_weapons) and item.name in FIREARMS):
+            state.prog_items[item.player][item.name] += 1
+            return True
+        return False
+
+    def remove(self, state, item) -> bool:
+        if item.advancement or (bool(self.options.global_weapons) and item.name in FIREARMS):
+            state.prog_items[item.player][item.name] -= 1
+            return True
+        return False
