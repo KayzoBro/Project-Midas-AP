@@ -3,7 +3,7 @@
  *
  * midas.ini [archipelago] turns it on. While it is on, the mission folder follows
  * dossiers from the server instead of the cart save, and a completed solo mission
- * is a location check. Ids match archipelago/goldeneye/data.py.
+ * is a location check. Ids match archipelago/projectmidas/data.py.
  */
 #include "ap_client.h"
 #include "ap_discord.h"

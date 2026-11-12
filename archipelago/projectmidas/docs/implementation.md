@@ -2,17 +2,17 @@
 
 Document technique de ce qui est branché aujourd’hui. Le nom de jeu envoyé au serveur est exactement `Project Midas - GE 007`. Un yaml ou une room encore nommés `GoldenEye 007` ne correspondent plus.
 
-Le monde n’est pas dans la distribution officielle d’Archipelago. On copie `archipelago/goldeneye` dans `custom_worlds/goldeneye`, puis on génère la seed en local. Le client Windows parle le protocole 0.6.
+Le monde n’est pas dans la distribution officielle d’Archipelago. On copie `archipelago/projectmidas` dans `custom_worlds/projectmidas`, puis on génère la seed en local. Le dossier s’appelle `projectmidas` pour cohabiter avec un autre monde GoldenEye déjà installé. Le client Windows parle le protocole 0.6.
 
-Les identifiants C et Python sont comparés par `python archipelago/check_ids.py`. Les listes de noms partagées sont marquées `AP_SYNC` dans `port/src/ap_client.c` et doivent rester identiques à `archipelago/goldeneye/data.py`.
+Les identifiants C et Python sont comparés par `python archipelago/check_ids.py`. Les listes de noms partagées sont marquées `AP_SYNC` dans `port/src/ap_client.c` et doivent rester identiques à `archipelago/projectmidas/data.py`.
 
 ## Fichiers
 
 | Rôle | Fichier |
 |---|---|
-| Identifiants | `port/include/ap_ids.h`, `archipelago/goldeneye/data.py` |
-| Génération, logique, slot data | `archipelago/goldeneye/__init__.py` |
-| Options yaml | `archipelago/goldeneye/options.py` |
+| Identifiants | `port/include/ap_ids.h`, `archipelago/projectmidas/data.py` |
+| Génération, logique, slot data | `archipelago/projectmidas/__init__.py` |
+| Options yaml | `archipelago/projectmidas/options.py` |
 | Client, état, effets | `port/src/ap_client.c`, `port/include/ap_client.h` |
 | Réseau | `port/src/ap_net.c` |
 | JSON minimal | `port/src/ap_json.c` |
@@ -59,7 +59,7 @@ Les 19 premières armes sont les armes tenues en main, jusqu’au lance-roquette
 
 ## Génération de la seed
 
-`GoldenEyeWorld.generate_early` fige la forme de la seed avant de créer les items.
+`ProjectMidasWorld.generate_early` fige la forme de la seed avant de créer les items.
 
 - Aztec ou Egyptian comme goal force l’inclusion des missions bonus.
 - `difficulty_checks` choisit l’ensemble des difficultés qui existent comme locations : les trois, ou une seule.

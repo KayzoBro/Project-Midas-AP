@@ -246,7 +246,7 @@ mipmaps is set by Classic Mode; leave it as it is.
 The title leads to a login screen. Solo play stays there until a seed
 accepts the slot, so the cart's Dam-first save cannot be started.
 Clearing a solo mission sends that check. Cheats block the check.
-The world package lives in archipelago/goldeneye; a local Archipelago 0.6
+The world package lives in archipelago/projectmidas; a local Archipelago 0.6
 server hosts the seed. The tilde console accepts the same keys: ap help.
 
   Key       | Default          | What it does

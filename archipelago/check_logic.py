@@ -1,4 +1,4 @@
-"""Every generated GoldenEye seed has to be finishable.
+"""Every generated Project Midas seed has to be finishable.
 
 The generator places a required item only on a location that can already be
 reached without that item. This walks the same rules as the world and rejects
@@ -8,7 +8,7 @@ a setting only when that placement cannot reach every location.
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "goldeneye"))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "projectmidas"))
 
 import data  # noqa: E402
 

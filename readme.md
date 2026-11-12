@@ -48,7 +48,7 @@ The game can join an Archipelago room. Clearing a solo mission sends that check.
 
 Archipelago calls this game `Project Midas - GE 007`. A room generated under another name will not accept the client. The world is not in the official Archipelago build yet, so you generate the seed on your machine and host it locally. The Windows game can also connect with TLS to a server that already has the world.
 
-The options are in [archipelago/goldeneye/docs/setup_en.md](archipelago/goldeneye/docs/setup_en.md).
+The options are in [archipelago/projectmidas/docs/setup_en.md](archipelago/projectmidas/docs/setup_en.md).
 
 ### Install the apworld
 
@@ -56,15 +56,15 @@ Use Archipelago 0.6 or newer. Put the world where the launcher looks for custom 
 
 Either copy the packed world:
 
-`archipelago/goldeneye.apworld`
+`archipelago/projectmidas.apworld`
 
 or copy the source folder:
 
-`archipelago/goldeneye`
+`archipelago/projectmidas`
 
 to:
 
-`<Archipelago>/custom_worlds/goldeneye`
+`<Archipelago>/custom_worlds/projectmidas`
 
 The folder copy must contain `__init__.py`.
 

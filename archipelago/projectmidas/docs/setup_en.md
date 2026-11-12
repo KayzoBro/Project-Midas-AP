@@ -12,11 +12,12 @@ Archipelago calls this game `Project Midas - GE 007`.
 
 ## Install the world
 
-Use Archipelago 0.6 or newer. Copy `archipelago/goldeneye.apworld` into
+Use Archipelago 0.6 or newer. Copy `archipelago/projectmidas.apworld` into
 `<Archipelago>/custom_worlds/`.
 
-Or copy the folder `archipelago/goldeneye` to
-`<Archipelago>/custom_worlds/goldeneye`. That copy must contain `__init__.py`.
+Or copy the folder `archipelago/projectmidas` to
+`<Archipelago>/custom_worlds/projectmidas`. That copy must contain `__init__.py`.
+The folder name is `projectmidas` so it can sit next to another GoldenEye world.
 
 ## Player options
 
